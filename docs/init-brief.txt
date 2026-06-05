@@ -1,0 +1,11 @@
+The AI Job Matcher & CV Analyzer (Your Flagship)
+
+The Product: Users upload a CV PDF. The system scrapes job boards, evaluates matches via an AI model
+(OpenAI/Gemini), and returns interview probabilities.
+
+Core Architecture: React frontend, FastAPI backend, PostgreSQL, Redis/RabbitMQ message queue,
+background worker nodes.
+
+The Portfolio Flex: Demonstrates asynchronous compute and auto-scaling (worker nodes scale based on
+queue depth). Showcases DevSecOps via strict IAM roles for PII (CVs) and encryption at rest. FinOps is
+highlighted by tracking AI API costs per job run.
