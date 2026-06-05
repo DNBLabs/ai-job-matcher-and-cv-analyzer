@@ -49,7 +49,7 @@ Repo scaffold + Docker Compose
 
 ### Phase 0: Project Foundation
 
-- [ ] Task 0: Monorepo scaffold and Docker Compose baseline
+- [x] Task 0: Monorepo scaffold and Docker Compose baseline — Added backend/worker FastAPI scaffold, TDD health/worker tests, React/Vite SPA, shared Dockerfile (UID 10001), docker-compose.yml (api, worker, postgres), and security baseline (headers, CORS, sanitized 500s, OpenAPI disabled in prod, Postgres bound to localhost).
 - [ ] Task 1: Infrastructure ports and local adapters
 - [ ] Task 2: Domain core and PostgreSQL schema migrations
 

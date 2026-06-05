@@ -1,0 +1,47 @@
+# Local development stack: API, worker, and PostgreSQL.
+# Queue and blob emulators are added in Task 1.
+# Postgres credentials below are for local dev only — production uses private endpoints + Key Vault.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: jobmatcher
+      POSTGRES_PASSWORD: jobmatcher
+      POSTGRES_DB: jobmatcher
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobmatcher -d jobmatcher"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://jobmatcher:jobmatcher@postgres:5432/jobmatcher
+      APP_ENV: development
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+    command: ["python", "-m", "worker.main"]
+    environment:
+      DATABASE_URL: postgresql://jobmatcher:jobmatcher@postgres:5432/jobmatcher
+      APP_ENV: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
