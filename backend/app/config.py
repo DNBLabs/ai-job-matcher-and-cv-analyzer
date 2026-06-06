@@ -9,7 +9,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    database_url: str = "postgresql://jobmatcher:jobmatcher@localhost:5432/jobmatcher"
+    database_url: str = "postgresql+psycopg://jobmatcher:jobmatcher@127.0.0.1:5432/jobmatcher"
     app_env: str = "development"
     allowed_origins: str = Field(
         default="http://localhost:5173,http://localhost:3000",

@@ -46,7 +46,7 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      DATABASE_URL: postgresql://jobmatcher:jobmatcher@postgres:5432/jobmatcher
+      DATABASE_URL: postgresql+psycopg://jobmatcher:jobmatcher@postgres:5432/jobmatcher
       APP_ENV: development
       ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
       BLOB_STORE_BACKEND: azurite
@@ -68,7 +68,7 @@ services:
       context: ./backend
     command: ["python", "-m", "worker.main"]
     environment:
-      DATABASE_URL: postgresql://jobmatcher:jobmatcher@postgres:5432/jobmatcher
+      DATABASE_URL: postgresql+psycopg://jobmatcher:jobmatcher@postgres:5432/jobmatcher
       APP_ENV: development
       BLOB_STORE_BACKEND: azurite
       AZURE_STORAGE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
