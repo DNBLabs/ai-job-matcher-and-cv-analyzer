@@ -1,5 +1,4 @@
-# Local development stack: API, worker, and PostgreSQL.
-# Queue and blob emulators are added in Task 1.
+# Local development stack: API, worker, PostgreSQL, Azurite, and RabbitMQ.
 # Postgres credentials below are for local dev only — production uses private endpoints + Key Vault.
 
 services:
@@ -19,17 +18,49 @@ services:
       timeout: 5s
       retries: 5
 
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.33.0
+    command: azurite --blobHost 0.0.0.0 --skipApiVersionCheck
+    ports:
+      - "127.0.0.1:10000:10000"
+    volumes:
+      - azurite_data:/data
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: jobmatcher
+      RABBITMQ_DEFAULT_PASS: jobmatcher
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api:
     build:
       context: ./backend
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       DATABASE_URL: postgresql://jobmatcher:jobmatcher@postgres:5432/jobmatcher
       APP_ENV: development
       ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+      BLOB_STORE_BACKEND: azurite
+      AZURE_STORAGE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+      BLOB_CONTAINER_NAME: cvs
+      BLOB_KEY_PREFIX: cvs/
+      JOB_QUEUE_BACKEND: rabbitmq
+      RABBITMQ_URL: amqp://jobmatcher:jobmatcher@rabbitmq:5672/
+      JOB_QUEUE_NAME: analysis-runs
+      SECRET_PROVIDER_BACKEND: env
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
   worker:
@@ -39,9 +70,20 @@ services:
     environment:
       DATABASE_URL: postgresql://jobmatcher:jobmatcher@postgres:5432/jobmatcher
       APP_ENV: development
+      BLOB_STORE_BACKEND: azurite
+      AZURE_STORAGE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+      BLOB_CONTAINER_NAME: cvs
+      BLOB_KEY_PREFIX: cvs/
+      JOB_QUEUE_BACKEND: rabbitmq
+      RABBITMQ_URL: amqp://jobmatcher:jobmatcher@rabbitmq:5672/
+      JOB_QUEUE_NAME: analysis-runs
+      SECRET_PROVIDER_BACKEND: env
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
 volumes:
   postgres_data:
+  azurite_data:

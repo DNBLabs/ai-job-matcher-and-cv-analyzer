@@ -9,9 +9,11 @@ description = "FastAPI API and worker for AI Job Matcher & CV Analyzer"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "azure-storage-blob>=12.24.0",
     "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.32.0",
+    "pika>=1.3.0",
     "pydantic-settings>=2.6.0",
+    "uvicorn[standard]>=0.32.0",
 ]
 
 [project.optional-dependencies]
