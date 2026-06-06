@@ -50,14 +50,14 @@ Repo scaffold + Docker Compose
 ### Phase 0: Project Foundation
 
 - [x] Task 0: Monorepo scaffold and Docker Compose baseline — Added backend/worker FastAPI scaffold, TDD health/worker tests, React/Vite SPA, shared Dockerfile (UID 10001), docker-compose.yml (api, worker, postgres), and security baseline (headers, CORS, sanitized 500s, OpenAPI disabled in prod, Postgres bound to localhost).
-- [x] CI baseline (post–Task 0): `.github/workflows/ci.yml` on PR/push to `main` — backend pytest (explicit `tests/ports/` Task 1 gate + full suite), frontend lint/test/build/audit, `docker compose config` + `docker compose build` with Azurite/RabbitMQ services (Terraform validate + CVE scan deferred to Task 28).
+- [x] CI baseline (post–Task 0): `.github/workflows/ci.yml` on PR/push to `main` — backend pytest (explicit `tests/ports/` Task 1 gate, `tests/domain/` Task 2 gate, `alembic upgrade head` on ephemeral Postgres 16, then full suite), frontend lint/test/build/audit, `docker compose config` + `docker compose build` with Azurite/RabbitMQ services (Terraform validate + CVE scan deferred to Task 28).
 - [x] Task 1: Infrastructure ports and local adapters — Added BlobStore/JobQueue/SecretProvider ports, memory/in-process/env local adapters, Azurite/RabbitMQ Compose adapters, factory wiring from Settings, boundary validation (key traversal, secret names, queue payloads), and contract tests under `tests/ports/`.
-- [ ] Task 2: Domain core and PostgreSQL schema migrations
+- [x] Task 2: Domain core and PostgreSQL schema migrations — Added domain state machine, quota, divergence helpers; SQLAlchemy models; Alembic initial migration; owner-scoped repositories; admin seed stub; security hardening (email/score validation, append-only audit repo, soft-delete IDOR-safe CV lookup, DB check constraints).
 
 #### Checkpoint: Foundation
 - [ ] `docker compose up` starts API, worker, Postgres, queue emulator, blob emulator
-- [ ] Migrations apply cleanly; health endpoint returns 200
-- [ ] Unit tests for domain quota/state machine pass
+- [x] Migrations apply cleanly; health endpoint returns 200 — `alembic upgrade head` verified against Compose Postgres.
+- [x] Unit tests for domain quota/state machine pass — `pytest tests/domain/` (30 tests) in CI.
 
 ---
 
@@ -178,15 +178,15 @@ Repo scaffold + Docker Compose
 **Description:** Create the repository layout (`backend/`, `frontend/`, `infra/`), Python package with FastAPI API entrypoint and worker entrypoint stubs, React SPA scaffold (Vite), shared `docker-compose.yml` with PostgreSQL, and non-root Dockerfiles (UID 10001). Establish pytest and Vitest tooling, `.env.example`, and a `/health` endpoint.
 
 **Acceptance criteria:**
-- [ ] Directory layout matches PRD module boundaries (domain, ports, api, worker, web)
-- [ ] `docker compose up` builds and starts api, worker, postgres without errors
-- [ ] API responds `200` on `GET /health`; worker process starts and logs ready
-- [ ] Dockerfiles run as non-root user 10001
+- [x] Directory layout matches PRD module boundaries (domain, ports, api, worker, web)
+- [x] `docker compose up` builds and starts api, worker, postgres without errors
+- [x] API responds `200` on `GET /health`; worker process starts and logs ready
+- [x] Dockerfiles run as non-root user 10001
 
 **Verification:**
-- [ ] `docker compose up --build` succeeds
-- [ ] `pytest` runs (even if zero tests initially)
-- [ ] `npm run build` in frontend succeeds
+- [x] `docker compose up --build` succeeds
+- [x] `pytest` runs (even if zero tests initially)
+- [x] `npm run build` in frontend succeeds
 
 **Dependencies:** None
 
@@ -231,14 +231,14 @@ Repo scaffold + Docker Compose
 **Description:** Implement domain entities and pure logic: User Account, CV, Job Search, Analysis Run state machine, quota/concurrency rules, partial-success rules, divergence badge helpers. Add Alembic (or equivalent) migrations for all PRD tables plus `sessions`, `rate_limit_counters`, and `audit_log`. Seed script stub for admin bootstrap.
 
 **Acceptance criteria:**
-- [ ] Migrations create: `user_account`, `cv`, `analysis_run`, `job_match_result`, `magic_link_token`, `sessions`, `rate_limit_counters`, `audit_log`
-- [ ] Run state machine unit tests: valid transitions, terminal states, partial success
-- [ ] Quota logic: 3 runs/24h rolling, 1 concurrent, unlimited bypass
-- [ ] Repository layer (or SQLAlchemy models) with owner-scoped queries
+- [x] Migrations create: `user_account`, `cv`, `analysis_run`, `job_match_result`, `magic_link_token`, `sessions`, `rate_limit_counters`, `audit_log`
+- [x] Run state machine unit tests: valid transitions, terminal states, partial success
+- [x] Quota logic: 3 runs/24h rolling, 1 concurrent, unlimited bypass
+- [x] Repository layer (or SQLAlchemy models) with owner-scoped queries
 
 **Verification:**
-- [ ] `pytest tests/domain/` passes
-- [ ] `alembic upgrade head` succeeds in Compose Postgres
+- [x] `pytest tests/domain/` passes
+- [x] `alembic upgrade head` succeeds in Compose Postgres
 
 **Dependencies:** Task 0
 

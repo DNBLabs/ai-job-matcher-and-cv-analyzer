@@ -18,9 +18,27 @@ jobs:
   backend:
     name: Backend tests
     runs-on: ubuntu-latest
+    # Ephemeral Postgres for Task 2 Alembic gate — no production secrets in CI.
+    # Source: https://docs.github.com/en/actions/using-containerized-services/creating-postgresql-service-containers
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: jobmatcher
+          POSTGRES_PASSWORD: jobmatcher
+          POSTGRES_DB: jobmatcher
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jobmatcher -d jobmatcher"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: backend
+    env:
+      DATABASE_URL: postgresql+psycopg://jobmatcher:jobmatcher@localhost:5432/jobmatcher
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,6 +55,13 @@ jobs:
 
       - name: Infrastructure port contract tests (Task 1)
         run: pytest tests/ports/ -v
+
+      - name: Domain logic and repository tests (Task 2)
+        run: pytest tests/domain/ -v
+
+      - name: Apply database migrations (Task 2)
+        # Source: https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
+        run: alembic upgrade head
 
       - name: Full backend test suite
         run: pytest -v
