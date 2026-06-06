@@ -16,6 +16,41 @@ class Settings(BaseSettings):
         description="Comma-separated browser origins permitted for CORS with credentials.",
     )
 
+    blob_store_backend: str = Field(
+        default="memory",
+        description="BlobStore adapter: memory (CI/local pytest) or azurite (Docker Compose).",
+    )
+    azure_storage_connection_string: str | None = Field(
+        default=None,
+        description="Azure Storage connection string for Azurite or production Blob Storage.",
+    )
+    blob_container_name: str = Field(
+        default="cvs",
+        description="Blob container for CV PDF objects.",
+    )
+    blob_key_prefix: str = Field(
+        default="cvs/",
+        description="Logical key prefix enforced by BlobStore adapters.",
+    )
+
+    job_queue_backend: str = Field(
+        default="in_process",
+        description="JobQueue adapter: in_process (CI/local pytest) or rabbitmq (Docker Compose).",
+    )
+    rabbitmq_url: str | None = Field(
+        default=None,
+        description="AMQP broker URL when job_queue_backend is rabbitmq.",
+    )
+    job_queue_name: str = Field(
+        default="analysis-runs",
+        description="Durable queue name for Analysis Run dispatch messages.",
+    )
+
+    secret_provider_backend: str = Field(
+        default="env",
+        description="SecretProvider adapter: env reads process environment variables.",
+    )
+
     @field_validator("allowed_origins")
     @classmethod
     def strip_origin_entries(cls, value: str) -> str:

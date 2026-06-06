@@ -50,8 +50,8 @@ Repo scaffold + Docker Compose
 ### Phase 0: Project Foundation
 
 - [x] Task 0: Monorepo scaffold and Docker Compose baseline — Added backend/worker FastAPI scaffold, TDD health/worker tests, React/Vite SPA, shared Dockerfile (UID 10001), docker-compose.yml (api, worker, postgres), and security baseline (headers, CORS, sanitized 500s, OpenAPI disabled in prod, Postgres bound to localhost).
-- [x] CI baseline (post–Task 0): `.github/workflows/ci.yml` on PR/push to `main` — backend pytest, frontend lint/test/build/audit, `docker compose build` (Terraform validate + CVE scan deferred to Task 28).
-- [ ] Task 1: Infrastructure ports and local adapters
+- [x] CI baseline (post–Task 0): `.github/workflows/ci.yml` on PR/push to `main` — backend pytest (explicit `tests/ports/` Task 1 gate + full suite), frontend lint/test/build/audit, `docker compose config` + `docker compose build` with Azurite/RabbitMQ services (Terraform validate + CVE scan deferred to Task 28).
+- [x] Task 1: Infrastructure ports and local adapters — Added BlobStore/JobQueue/SecretProvider ports, memory/in-process/env local adapters, Azurite/RabbitMQ Compose adapters, factory wiring from Settings, boundary validation (key traversal, secret names, queue payloads), and contract tests under `tests/ports/`.
 - [ ] Task 2: Domain core and PostgreSQL schema migrations
 
 #### Checkpoint: Foundation
@@ -205,15 +205,15 @@ Repo scaffold + Docker Compose
 **Description:** Implement the three cloud-agnostic ports from ADR-0002 with local adapters: `BlobStore` (MinIO/Azurite), `JobQueue` (RabbitMQ or in-process), `SecretProvider` (env vars). Wire adapters via factory from environment config. Add contract tests asserting put/get/delete semantics and publish/consume round-trip.
 
 **Acceptance criteria:**
-- [ ] `BlobStore` interface: `put`, `get`, `delete` with key prefix support
-- [ ] `JobQueue` interface: `publish(message)`, `consume(handler)` with JSON payload
-- [ ] `SecretProvider` interface: `get(name) → str` from env in local mode
-- [ ] Local adapters integrated into Docker Compose services
-- [ ] Contract tests pass against local adapters
+- [x] `BlobStore` interface: `put`, `get`, `delete` with key prefix support
+- [x] `JobQueue` interface: `publish(message)`, `consume(handler)` with JSON payload
+- [x] `SecretProvider` interface: `get(name) → str` from env in local mode
+- [x] Local adapters integrated into Docker Compose services
+- [x] Contract tests pass against local adapters
 
 **Verification:**
-- [ ] `pytest tests/ports/` passes
-- [ ] Manual: upload bytes to blob emulator via adapter in REPL or integration test
+- [x] `pytest tests/ports/` passes
+- [x] Manual: upload bytes to blob emulator via adapter in REPL or integration test
 
 **Dependencies:** Task 0
 
