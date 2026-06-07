@@ -50,7 +50,7 @@ Repo scaffold + Docker Compose
 ### Phase 0: Project Foundation
 
 - [x] Task 0: Monorepo scaffold and Docker Compose baseline — Added backend/worker FastAPI scaffold, TDD health/worker tests, React/Vite SPA, shared Dockerfile (UID 10001), docker-compose.yml (api, worker, postgres), and security baseline (headers, CORS, sanitized 500s, OpenAPI disabled in prod, Postgres bound to localhost).
-- [x] CI baseline (post–Task 0): `.github/workflows/ci.yml` on PR/push to `main` — backend pytest (explicit `tests/ports/` Task 1 gate, `tests/domain/` Task 2 gate, `tests/auth/` Task 3 gate, `alembic upgrade head`, `tests/auth/test_sessions_postgres.py` Task 3 Postgres smoke, then full suite), frontend lint/test/build/audit, `docker compose config` + `docker compose build` with Azurite/RabbitMQ services (Terraform validate + CVE scan deferred to Task 28).
+- [x] CI baseline (post–Task 0): `.github/workflows/ci.yml` on PR/push to `main` — backend pytest (explicit `tests/ports/` Task 1 gate, `tests/domain/` Task 2 gate, `tests/auth/test_sessions.py` + `tests/auth/test_security_boundaries.py` Task 3 gate, `tests/auth/test_google_oauth.py` Task 4 gate, `alembic upgrade head`, `tests/auth/test_sessions_postgres.py` Task 3 Postgres smoke, then full suite), frontend lint/test/build/audit, `docker compose config` + `docker compose build` with Azurite/RabbitMQ services (Terraform validate + CVE scan deferred to Task 28).
 - [x] Task 1: Infrastructure ports and local adapters — Added BlobStore/JobQueue/SecretProvider ports, memory/in-process/env local adapters, Azurite/RabbitMQ Compose adapters, factory wiring from Settings, boundary validation (key traversal, secret names, queue payloads), and contract tests under `tests/ports/`.
 - [x] Task 2: Domain core and PostgreSQL schema migrations — Added domain state machine, quota, divergence helpers; SQLAlchemy models; Alembic initial migration; owner-scoped repositories; admin seed stub; security hardening (email/score validation, append-only audit repo, soft-delete IDOR-safe CV lookup, DB check constraints).
 
@@ -64,7 +64,7 @@ Repo scaffold + Docker Compose
 ### Phase 1: Authentication
 
 - [x] Task 3: Session store and auth middleware (Postgres-backed) — Added SessionService (24h idle / 7d absolute expiry, rotation, cleanup), HttpOnly SameSite=Lax cookie helpers, get_current_user dependency, session-id boundary validation, and tests in tests/auth/.
-- [ ] Task 4: Google OAuth sign-in flow
+- [x] Task 4: Google OAuth sign-in flow — Added GET /auth/google/login and /callback with CSRF state cookie, SecretProvider-backed client credentials, Google token/userinfo exchange, user upsert by google_sub/email, session rotation, dashboard redirect, audit_log events, security hardening (email_verified gate, google_sub conflict check, open-redirect allowlist, oauth_state cleared on failure), and tests in tests/auth/test_google_oauth.py.
 - [ ] Task 5: Magic link sign-in flow
 - [ ] Task 6: Sign-out, rate limits, and IDOR-safe routing
 
@@ -280,13 +280,14 @@ Repo scaffold + Docker Compose
 **Description:** Implement `GET /auth/google/login` (redirect with `state` nonce) and `GET /auth/google/callback` (validate state, exchange code, upsert user by email/google_sub, create session). Store OAuth client secrets via `SecretProvider`. Log auth events to `audit_log`.
 
 **Acceptance criteria:**
-- [ ] OAuth `state` validated on callback; invalid state returns 400
-- [ ] New user created on first sign-in; existing user matched by google_sub or email
-- [ ] Redirect to dashboard after success
-- [ ] Auth success/failure appended to `audit_log`
+- [x] OAuth `state` validated on callback; invalid state returns 400
+- [x] New user created on first sign-in; existing user matched by google_sub or email
+- [x] Redirect to dashboard after success
+- [x] Auth success/failure appended to `audit_log`
 
 **Verification:**
-- [ ] Integration test with mocked Google token endpoint
+- [x] Integration test with mocked Google token endpoint
+- [x] CI gate: `pytest tests/auth/test_google_oauth.py` in `.github/workflows/ci.yml` (no production OAuth secrets in CI)
 - [ ] Manual OAuth flow against Google Cloud console test client (optional)
 
 **Dependencies:** Task 1, Task 3

@@ -1,13 +1,22 @@
 """Application configuration loaded from environment variables."""
 
-from pydantic import Field, field_validator
+from typing import Self
+
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.domain.validation import validate_post_auth_redirect_url
+from app.env_bootstrap import bootstrap_process_environment
 
 
 class Settings(BaseSettings):
     """Runtime settings for the API and worker processes."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=(".env", "../.env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     database_url: str = "postgresql+psycopg://jobmatcher:jobmatcher@127.0.0.1:5432/jobmatcher"
     app_env: str = "development"
@@ -50,6 +59,14 @@ class Settings(BaseSettings):
         default="env",
         description="SecretProvider adapter: env reads process environment variables.",
     )
+    google_oauth_redirect_uri: str = Field(
+        default="http://localhost:8000/auth/google/callback",
+        description="OAuth callback URL registered with Google Cloud console.",
+    )
+    post_auth_redirect_url: str = Field(
+        default="http://localhost:5173/dashboard",
+        description="Browser redirect target after successful sign-in.",
+    )
 
     @field_validator("allowed_origins")
     @classmethod
@@ -77,6 +94,15 @@ class Settings(BaseSettings):
             return []
         return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
 
+    @model_validator(mode="after")
+    def validate_auth_redirect_targets(self) -> Self:
+        """Reject misconfigured post-auth redirects that would enable open redirects."""
+        try:
+            validate_post_auth_redirect_url(self.post_auth_redirect_url, self.cors_origins)
+        except ValueError as error:
+            raise ValueError(str(error)) from error
+        return self
+
 
 def get_settings() -> Settings:
     """Return application settings resolved from the environment.
@@ -84,4 +110,5 @@ def get_settings() -> Settings:
     Returns:
         Settings: Parsed configuration values for the current process.
     """
+    bootstrap_process_environment()
     return Settings()

@@ -60,7 +60,12 @@ jobs:
         run: pytest tests/domain/ -v
 
       - name: Auth session tests (Task 3)
-        run: pytest tests/auth/ -v
+        run: pytest tests/auth/test_sessions.py tests/auth/test_security_boundaries.py -v
+
+      - name: Google OAuth sign-in tests (Task 4)
+        # Mocked Google token/userinfo endpoints; no GOOGLE_OAUTH_* secrets required in CI.
+        # Source: https://docs.github.com/en/actions/security-for-github-actions/security-guides/about-secrets
+        run: pytest tests/auth/test_google_oauth.py -v
 
       - name: Apply database migrations (Task 2)
         # Source: https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration

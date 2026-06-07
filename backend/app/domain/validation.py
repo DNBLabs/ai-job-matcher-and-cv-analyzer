@@ -75,3 +75,32 @@ def validate_audit_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     except (TypeError, ValueError) as error:
         raise ValueError("audit metadata must be JSON-serializable") from error
     return metadata
+
+
+def validate_post_auth_redirect_url(redirect_url: str, allowed_origins: list[str]) -> str:
+    """Ensure post-auth redirects stay within configured browser origins.
+
+    Prevents open redirects when ``POST_AUTH_REDIRECT_URL`` is misconfigured.
+    Source: https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html
+
+    Args:
+        redirect_url: Dashboard URL used after successful sign-in.
+        allowed_origins: Parsed CORS allowlist from application settings.
+
+    Returns:
+        str: Validated redirect URL.
+
+    Raises:
+        ValueError: When the redirect origin is not explicitly allowed.
+    """
+    from urllib.parse import urlparse
+
+    parsed = urlparse(redirect_url.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("post-auth redirect URL must be an absolute http(s) URL")
+
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    if origin not in allowed_origins:
+        raise ValueError("post-auth redirect origin is not allowed")
+
+    return redirect_url.strip()
