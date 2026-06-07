@@ -25,7 +25,11 @@ async def test_security_headers_present_on_health_response() -> None:
 @pytest.mark.asyncio
 async def test_hsts_header_set_in_production() -> None:
     """HSTS is enabled only when APP_ENV is production."""
-    production_settings = Settings(app_env="production", allowed_origins="https://app.example.com")
+    production_settings = Settings(
+        app_env="production",
+        allowed_origins="https://app.example.com",
+        post_auth_redirect_url="https://app.example.com/dashboard",
+    )
     application = create_app(settings=production_settings)
     transport = ASGITransport(app=application)
 
@@ -39,7 +43,11 @@ async def test_hsts_header_set_in_production() -> None:
 @pytest.mark.asyncio
 async def test_unhandled_errors_do_not_expose_internals_in_production() -> None:
     """Unhandled exceptions return a generic message without stack or internal details."""
-    production_settings = Settings(app_env="production", allowed_origins="https://app.example.com")
+    production_settings = Settings(
+        app_env="production",
+        allowed_origins="https://app.example.com",
+        post_auth_redirect_url="https://app.example.com/dashboard",
+    )
     application = create_app(settings=production_settings)
 
     @application.get("/test-boom")
@@ -73,9 +81,28 @@ async def test_cors_allows_configured_development_origin() -> None:
 
 
 @pytest.mark.asyncio
+async def test_openapi_docs_allow_swagger_cdn_in_development() -> None:
+    """Swagger UI needs jsDelivr assets; strict default-src none renders a blank /docs page."""
+    application = create_app()
+    transport = ASGITransport(app=application)
+
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/docs")
+
+    assert response.status_code == 200
+    csp = response.headers.get("Content-Security-Policy", "")
+    assert "cdn.jsdelivr.net" in csp
+    assert "default-src 'none'" not in csp
+
+
+@pytest.mark.asyncio
 async def test_openapi_docs_disabled_in_production() -> None:
     """OpenAPI schema is not exposed when APP_ENV is production."""
-    production_settings = Settings(app_env="production", allowed_origins="https://app.example.com")
+    production_settings = Settings(
+        app_env="production",
+        allowed_origins="https://app.example.com",
+        post_auth_redirect_url="https://app.example.com/dashboard",
+    )
     application = create_app(settings=production_settings)
     transport = ASGITransport(app=application)
 

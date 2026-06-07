@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.errors import register_exception_handlers
 from app.api.middleware.security_headers import SecurityHeadersMiddleware
+from app.api.routes.auth import router as auth_router
 from app.config import Settings, get_settings
 
 
@@ -39,6 +40,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.settings = runtime_settings
     application.add_middleware(SecurityHeadersMiddleware, settings=runtime_settings)
     register_exception_handlers(application, runtime_settings)
+    application.include_router(auth_router)
 
     @application.get("/health")
     async def health_check() -> dict[str, str]:

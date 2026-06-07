@@ -10,6 +10,19 @@ from app.config import Settings
 
 RequestResponseEndpoint = Callable[[Request], Awaitable[Response]]
 
+_STRICT_CONTENT_SECURITY_POLICY = "default-src 'none'; frame-ancestors 'none'"
+# FastAPI Swagger UI loads JS/CSS from jsDelivr in development.
+# Source: https://fastapi.tiangolo.com/how-to/custom-docs-ui-assets/
+_DEVELOPMENT_DOCS_CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "img-src 'self' data: https:; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none'"
+)
+_OPENAPI_DOCUMENTATION_PATHS = frozenset({"/docs", "/redoc", "/openapi.json"})
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Attach standard security headers to every API response."""
@@ -39,9 +52,25 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+        response.headers["Content-Security-Policy"] = self._content_security_policy_for(request)
 
         if self._settings.is_production:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
         return response
+
+    def _content_security_policy_for(self, request: Request) -> str:
+        """Return CSP appropriate for API responses versus local OpenAPI documentation.
+
+        Args:
+            request: Incoming HTTP request.
+
+        Returns:
+            str: Content-Security-Policy header value.
+        """
+        if (
+            not self._settings.is_production
+            and request.url.path in _OPENAPI_DOCUMENTATION_PATHS
+        ):
+            return _DEVELOPMENT_DOCS_CONTENT_SECURITY_POLICY
+        return _STRICT_CONTENT_SECURITY_POLICY
