@@ -59,9 +59,17 @@ jobs:
       - name: Domain logic and repository tests (Task 2)
         run: pytest tests/domain/ -v
 
+      - name: Auth session tests (Task 3)
+        run: pytest tests/auth/ -v
+
       - name: Apply database migrations (Task 2)
         # Source: https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
         run: alembic upgrade head
+
+      - name: Auth session Postgres smoke (Task 3)
+        # Validates sessions table on ephemeral Postgres after Alembic.
+        # Source: https://docs.github.com/en/actions/using-containerized-services/creating-postgresql-service-containers
+        run: pytest tests/auth/test_sessions_postgres.py -v
 
       - name: Full backend test suite
         run: pytest -v

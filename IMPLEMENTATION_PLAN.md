@@ -50,12 +50,12 @@ Repo scaffold + Docker Compose
 ### Phase 0: Project Foundation
 
 - [x] Task 0: Monorepo scaffold and Docker Compose baseline — Added backend/worker FastAPI scaffold, TDD health/worker tests, React/Vite SPA, shared Dockerfile (UID 10001), docker-compose.yml (api, worker, postgres), and security baseline (headers, CORS, sanitized 500s, OpenAPI disabled in prod, Postgres bound to localhost).
-- [x] CI baseline (post–Task 0): `.github/workflows/ci.yml` on PR/push to `main` — backend pytest (explicit `tests/ports/` Task 1 gate, `tests/domain/` Task 2 gate, `alembic upgrade head` on ephemeral Postgres 16, then full suite), frontend lint/test/build/audit, `docker compose config` + `docker compose build` with Azurite/RabbitMQ services (Terraform validate + CVE scan deferred to Task 28).
+- [x] CI baseline (post–Task 0): `.github/workflows/ci.yml` on PR/push to `main` — backend pytest (explicit `tests/ports/` Task 1 gate, `tests/domain/` Task 2 gate, `tests/auth/` Task 3 gate, `alembic upgrade head`, `tests/auth/test_sessions_postgres.py` Task 3 Postgres smoke, then full suite), frontend lint/test/build/audit, `docker compose config` + `docker compose build` with Azurite/RabbitMQ services (Terraform validate + CVE scan deferred to Task 28).
 - [x] Task 1: Infrastructure ports and local adapters — Added BlobStore/JobQueue/SecretProvider ports, memory/in-process/env local adapters, Azurite/RabbitMQ Compose adapters, factory wiring from Settings, boundary validation (key traversal, secret names, queue payloads), and contract tests under `tests/ports/`.
 - [x] Task 2: Domain core and PostgreSQL schema migrations — Added domain state machine, quota, divergence helpers; SQLAlchemy models; Alembic initial migration; owner-scoped repositories; admin seed stub; security hardening (email/score validation, append-only audit repo, soft-delete IDOR-safe CV lookup, DB check constraints).
 
 #### Checkpoint: Foundation
-- [ ] `docker compose up` starts API, worker, Postgres, queue emulator, blob emulator
+- [x] `docker compose up` starts API, worker, Postgres, queue emulator, blob emulator
 - [x] Migrations apply cleanly; health endpoint returns 200 — `alembic upgrade head` verified against Compose Postgres.
 - [x] Unit tests for domain quota/state machine pass — `pytest tests/domain/` (30 tests) in CI.
 
@@ -63,7 +63,7 @@ Repo scaffold + Docker Compose
 
 ### Phase 1: Authentication
 
-- [ ] Task 3: Session store and auth middleware (Postgres-backed)
+- [x] Task 3: Session store and auth middleware (Postgres-backed) — Added SessionService (24h idle / 7d absolute expiry, rotation, cleanup), HttpOnly SameSite=Lax cookie helpers, get_current_user dependency, session-id boundary validation, and tests in tests/auth/.
 - [ ] Task 4: Google OAuth sign-in flow
 - [ ] Task 5: Magic link sign-in flow
 - [ ] Task 6: Sign-out, rate limits, and IDOR-safe routing
@@ -255,14 +255,15 @@ Repo scaffold + Docker Compose
 **Description:** Implement HttpOnly + Secure + SameSite=Lax session cookies backed by `sessions` table (24h idle / 7d absolute expiry, rotate on login). FastAPI dependency injects current user; unauthenticated requests to protected routes return 401. Session cleanup via `expires_at` predicate or periodic job.
 
 **Acceptance criteria:**
-- [ ] Session created on login, stored in Postgres with indexed session ID
-- [ ] Middleware/dependency resolves `user_id` from cookie
-- [ ] Idle and absolute expiry enforced
-- [ ] Session rotation on successful authentication
+- [x] Session created on login, stored in Postgres with indexed session ID
+- [x] Middleware/dependency resolves `user_id` from cookie
+- [x] Idle and absolute expiry enforced
+- [x] Session rotation on successful authentication
 
 **Verification:**
-- [ ] Integration test: create session → access protected route → expire → 401
-- [ ] `pytest tests/auth/test_sessions.py` passes
+- [x] Integration test: create session → access protected route → expire → 401
+- [x] `pytest tests/auth/` passes (session + security boundary tests)
+- [x] `pytest tests/auth/test_sessions_postgres.py` passes after `alembic upgrade head` in CI
 
 **Dependencies:** Task 2
 

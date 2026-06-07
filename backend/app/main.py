@@ -36,6 +36,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
+    application.state.settings = runtime_settings
     application.add_middleware(SecurityHeadersMiddleware, settings=runtime_settings)
     register_exception_handlers(application, runtime_settings)
 
