@@ -67,6 +67,10 @@ class Settings(BaseSettings):
         default="http://localhost:5173/dashboard",
         description="Browser redirect target after successful sign-in.",
     )
+    api_base_url: str = Field(
+        default="http://localhost:8000",
+        description="Public API origin used to build magic-link verification URLs.",
+    )
 
     @field_validator("allowed_origins")
     @classmethod
