@@ -25,18 +25,3 @@ def validate_pdf_upload(content: bytes, content_type: str | None) -> None:
         raise PdfValidationError("File too large")
     if len(content) < len(PDF_MAGIC_BYTES) or not content.startswith(PDF_MAGIC_BYTES):
         raise PdfValidationError("Invalid PDF file")
-
-
-def ensure_pdf_parse_timeout_stub(content: bytes) -> None:
-    """Placeholder for safe PDF parsing with timeout limits (implemented in Task 8).
-
-    Task 7 stores validated PDF bytes without extracting text. This hook reserves
-    the parse boundary so Task 8 can add page limits and a 30-second timeout.
-
-    Args:
-        content: Validated PDF bytes that will be parsed in a later task.
-
-    Raises:
-        PdfValidationError: Reserved for future parse-timeout failures.
-    """
-    _ = content

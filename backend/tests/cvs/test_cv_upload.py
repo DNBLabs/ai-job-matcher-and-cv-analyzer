@@ -13,7 +13,7 @@ from app.auth.session import SessionService
 from app.db.models import Cv, UserAccount
 from tests.auth.conftest import create_test_user
 
-VALID_PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"
+from tests.cvs.pdf_fixtures import VALID_PDF_BYTES
 EXE_RENAMED_AS_PDF_BYTES = b"MZ\x90\x00fake executable content"
 
 
