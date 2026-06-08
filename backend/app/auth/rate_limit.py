@@ -12,6 +12,8 @@ from app.db.models import RateLimitCounter
 MAGIC_LINK_EMAIL_LIMIT = 3
 MAGIC_LINK_IP_LIMIT = 10
 MAGIC_LINK_RATE_WINDOW = timedelta(hours=1)
+API_INGRESS_IP_LIMIT = 100
+API_INGRESS_RATE_WINDOW = timedelta(minutes=1)
 
 
 class RateLimitExceeded(Exception):
@@ -28,6 +30,18 @@ def magic_link_email_bucket(email: str) -> str:
         str: Stable bucket identifier for per-email counters.
     """
     return f"magic_link:email:{email}"
+
+
+def api_ingress_ip_bucket(client_ip: str) -> str:
+    """Return the rate-limit bucket key for API ingress requests by client IP.
+
+    Args:
+        client_ip: Observed client IP address from the incoming request.
+
+    Returns:
+        str: Stable bucket identifier for per-IP ingress counters.
+    """
+    return f"api_ingress:ip:{client_ip}"
 
 
 def magic_link_ip_bucket(client_ip: str) -> str:
@@ -57,6 +71,23 @@ def floor_to_window_start(value: datetime, window: timedelta) -> datetime:
     window_seconds = int(window.total_seconds())
     aligned_epoch = epoch_seconds - (epoch_seconds % window_seconds)
     return datetime.fromtimestamp(aligned_epoch, tz=UTC).replace(tzinfo=None)
+
+
+def retry_after_seconds(*, now: datetime, window: timedelta) -> int:
+    """Return seconds until the current rate-limit window resets.
+
+    Args:
+        now: Current instant when the limit was exceeded.
+        window: Rolling window duration for the bucket.
+
+    Returns:
+        int: Positive seconds suitable for a ``Retry-After`` response header.
+    """
+    aware_now = now.astimezone(UTC) if now.tzinfo is not None else now.replace(tzinfo=UTC)
+    window_start = floor_to_window_start(aware_now, window)
+    window_end = window_start + window
+    remaining_seconds = (window_end - aware_now.replace(tzinfo=None)).total_seconds()
+    return max(1, int(remaining_seconds))
 
 
 class RateLimiter:

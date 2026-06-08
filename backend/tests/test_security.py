@@ -4,13 +4,13 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.config import Settings
-from app.main import create_app
+from tests.conftest import create_api_test_app
 
 
 @pytest.mark.asyncio
 async def test_security_headers_present_on_health_response() -> None:
     """Public responses include baseline security headers per security posture."""
-    application = create_app()
+    application = create_api_test_app()
     transport = ASGITransport(app=application)
 
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
@@ -30,7 +30,7 @@ async def test_hsts_header_set_in_production() -> None:
         allowed_origins="https://app.example.com",
         post_auth_redirect_url="https://app.example.com/dashboard",
     )
-    application = create_app(settings=production_settings)
+    application = create_api_test_app(production_settings)
     transport = ASGITransport(app=application)
 
     async with AsyncClient(transport=transport, base_url="https://testserver") as client:
@@ -48,7 +48,7 @@ async def test_unhandled_errors_do_not_expose_internals_in_production() -> None:
         allowed_origins="https://app.example.com",
         post_auth_redirect_url="https://app.example.com/dashboard",
     )
-    application = create_app(settings=production_settings)
+    application = create_api_test_app(production_settings)
 
     @application.get("/test-boom")
     async def trigger_error() -> None:
@@ -68,7 +68,7 @@ async def test_unhandled_errors_do_not_expose_internals_in_production() -> None:
 async def test_cors_allows_configured_development_origin() -> None:
     """CORS permits only origins listed in ALLOWED_ORIGINS."""
     settings = Settings(allowed_origins="http://localhost:5173")
-    application = create_app(settings=settings)
+    application = create_api_test_app(settings)
     transport = ASGITransport(app=application)
 
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
@@ -83,7 +83,7 @@ async def test_cors_allows_configured_development_origin() -> None:
 @pytest.mark.asyncio
 async def test_openapi_docs_allow_swagger_cdn_in_development() -> None:
     """Swagger UI needs jsDelivr assets; strict default-src none renders a blank /docs page."""
-    application = create_app()
+    application = create_api_test_app()
     transport = ASGITransport(app=application)
 
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
@@ -103,7 +103,7 @@ async def test_openapi_docs_disabled_in_production() -> None:
         allowed_origins="https://app.example.com",
         post_auth_redirect_url="https://app.example.com/dashboard",
     )
-    application = create_app(settings=production_settings)
+    application = create_api_test_app(production_settings)
     transport = ASGITransport(app=application)
 
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:

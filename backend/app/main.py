@@ -4,9 +4,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.errors import register_exception_handlers
+from app.api.middleware.rate_limit import IngressRateLimitMiddleware
 from app.api.middleware.security_headers import SecurityHeadersMiddleware
 from app.api.routes.auth import router as auth_router
 from app.config import Settings, get_settings
+from app.db.session import get_session_factory
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -38,7 +40,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     application.state.settings = runtime_settings
+    application.state.session_factory = get_session_factory(runtime_settings)
     application.add_middleware(SecurityHeadersMiddleware, settings=runtime_settings)
+    application.add_middleware(IngressRateLimitMiddleware)
     register_exception_handlers(application, runtime_settings)
     application.include_router(auth_router)
 

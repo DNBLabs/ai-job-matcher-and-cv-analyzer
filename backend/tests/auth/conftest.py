@@ -71,10 +71,21 @@ def db_session() -> Generator[Session, None, None]:
         session.close()
 
 
+def _bind_test_session_factory(application, db_session: Session) -> None:
+    """Point middleware and dependencies at the in-memory test database."""
+    engine = db_session.get_bind()
+    application.state.session_factory = sessionmaker(
+        bind=engine,
+        autoflush=False,
+        autocommit=False,
+    )
+
+
 @pytest.fixture
 def test_app(auth_settings: Settings, db_session: Session):
     """Build a FastAPI app with database dependency override and a protected route."""
     application = create_app(settings=auth_settings)
+    _bind_test_session_factory(application, db_session)
 
     def override_get_db_session() -> Generator[Session, None, None]:
         try:
@@ -104,6 +115,7 @@ async def client(test_app) -> AsyncClient:
 def oauth_test_app(auth_settings: Settings, db_session: Session, oauth_secret_provider: FakeSecretProvider):
     """Build a FastAPI app with auth routes and fake OAuth secrets."""
     application = create_app(settings=auth_settings)
+    _bind_test_session_factory(application, db_session)
 
     def override_get_db_session() -> Generator[Session, None, None]:
         try:

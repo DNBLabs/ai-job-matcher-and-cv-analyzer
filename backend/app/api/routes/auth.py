@@ -28,7 +28,7 @@ from app.auth.magic_link import (
     issue_magic_link_token,
     verify_magic_link_token,
 )
-from app.auth.middleware import SESSION_COOKIE_NAME, apply_session_cookie
+from app.auth.middleware import SESSION_COOKIE_NAME, apply_session_cookie, clear_session_cookie
 from app.auth.rate_limit import (
     MAGIC_LINK_EMAIL_LIMIT,
     MAGIC_LINK_IP_LIMIT,
@@ -37,7 +37,8 @@ from app.auth.rate_limit import (
     magic_link_email_bucket,
     magic_link_ip_bucket,
 )
-from app.auth.session import SessionService
+from app.auth.session import SessionService, is_valid_session_id
+from app.db.models import SessionRecord
 from app.api.deps import get_settings_dependency
 from app.config import Settings
 from app.db.repositories.audit_log_repository import AuditLogRepository
@@ -444,4 +445,46 @@ async def verify_magic_link(
         status_code=status.HTTP_307_TEMPORARY_REDIRECT,
     )
     apply_session_cookie(response, session_record.id, settings)
+    return response
+
+
+@router.post("/logout")
+async def logout(
+    request: Request,
+    settings: Settings = Depends(get_settings_dependency),
+    db: Session = Depends(get_db_session),
+) -> JSONResponse:
+    """Sign out the current session by deleting the server row and clearing the cookie.
+
+    Args:
+        request: Incoming HTTP request carrying the session cookie.
+        settings: Runtime configuration for cookie attributes.
+        db: Request-scoped database session.
+
+    Returns:
+        JSONResponse: Confirmation payload with the session cookie cleared.
+    """
+    session_id = request.cookies.get(SESSION_COOKIE_NAME)
+    actor_user_id = None
+    session_service = SessionService(db)
+
+    if session_id:
+        if is_valid_session_id(session_id):
+            session_record = db.get(SessionRecord, session_id)
+            if session_record is not None:
+                actor_user_id = session_record.user_id
+        session_service.invalidate_session(session_id)
+
+    if actor_user_id is not None:
+        AuditLogRepository(db).append_event(
+            event_type="auth.logout",
+            actor_user_id=actor_user_id,
+            metadata={"method": "session_cookie"},
+        )
+
+    response = JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={"detail": "Signed out"},
+    )
+    clear_session_cookie(response, settings)
     return response
