@@ -50,7 +50,7 @@ Repo scaffold + Docker Compose
 ### Phase 0: Project Foundation
 
 - [x] Task 0: Monorepo scaffold and Docker Compose baseline — Added backend/worker FastAPI scaffold, TDD health/worker tests, React/Vite SPA, shared Dockerfile (UID 10001), docker-compose.yml (api, worker, postgres), and security baseline (headers, CORS, sanitized 500s, OpenAPI disabled in prod, Postgres bound to localhost).
-- [x] CI baseline (post–Task 0): `.github/workflows/ci.yml` on PR/push to `main` — backend pytest (explicit `tests/ports/` Task 1 gate, `tests/domain/` Task 2 gate, `tests/auth/test_sessions.py` + `tests/auth/test_security_boundaries.py` Task 3 gate, `tests/auth/test_google_oauth.py` Task 4 gate, `alembic upgrade head`, `tests/auth/test_sessions_postgres.py` Task 3 Postgres smoke, then full suite), frontend lint/test/build/audit, `docker compose config` + `docker compose build` with Azurite/RabbitMQ services (Terraform validate + CVE scan deferred to Task 28).
+- [x] CI baseline (post–Task 0): `.github/workflows/ci.yml` on PR/push to `main` — backend pytest (explicit `tests/ports/` Task 1 gate, `tests/domain/` Task 2 gate, `tests/auth/test_sessions.py` + `tests/auth/test_security_boundaries.py` Task 3 gate, `tests/auth/test_google_oauth.py` Task 4 gate, `tests/auth/test_magic_link.py` Task 5 gate, `alembic upgrade head`, `tests/auth/test_sessions_postgres.py` Task 3 Postgres smoke, then full suite), frontend lint/test/build/audit, `docker compose config` + `docker compose build` with Azurite/RabbitMQ services (Terraform validate + CVE scan deferred to Task 28).
 - [x] Task 1: Infrastructure ports and local adapters — Added BlobStore/JobQueue/SecretProvider ports, memory/in-process/env local adapters, Azurite/RabbitMQ Compose adapters, factory wiring from Settings, boundary validation (key traversal, secret names, queue payloads), and contract tests under `tests/ports/`.
 - [x] Task 2: Domain core and PostgreSQL schema migrations — Added domain state machine, quota, divergence helpers; SQLAlchemy models; Alembic initial migration; owner-scoped repositories; admin seed stub; security hardening (email/score validation, append-only audit repo, soft-delete IDOR-safe CV lookup, DB check constraints).
 
@@ -65,7 +65,7 @@ Repo scaffold + Docker Compose
 
 - [x] Task 3: Session store and auth middleware (Postgres-backed) — Added SessionService (24h idle / 7d absolute expiry, rotation, cleanup), HttpOnly SameSite=Lax cookie helpers, get_current_user dependency, session-id boundary validation, and tests in tests/auth/.
 - [x] Task 4: Google OAuth sign-in flow — Added GET /auth/google/login and /callback with CSRF state cookie, SecretProvider-backed client credentials, Google token/userinfo exchange, user upsert by google_sub/email, session rotation, dashboard redirect, audit_log events, security hardening (email_verified gate, google_sub conflict check, open-redirect allowlist, oauth_state cleared on failure), and tests in tests/auth/test_google_oauth.py.
-- [ ] Task 5: Magic link sign-in flow
+- [x] Task 5: Magic link sign-in flow — Added POST /auth/magic-link and GET /auth/magic-link/verify with SHA-256 hash-only storage, 15-minute single-use tokens, NotificationPort log adapter, Postgres rate_limit_counters (3/email/hour, 10/IP/hour), session rotation, audit_log events, and tests in tests/auth/test_magic_link.py.
 - [ ] Task 6: Sign-out, rate limits, and IDOR-safe routing
 
 #### Checkpoint: Auth
@@ -304,14 +304,14 @@ Repo scaffold + Docker Compose
 **Description:** Implement `POST /auth/magic-link` (issue token) and `GET /auth/magic-link/verify` (verify, single-use, 15 min expiry). Store `token_hash` only (SHA-256 of ≥256-bit token). Send email via notification port (console/log adapter for local dev). Enforce rate limits via `rate_limit_counters` (3/email/hour, 10/IP/hour).
 
 **Acceptance criteria:**
-- [ ] Plain token never persisted; only hash in `magic_link_token`
-- [ ] Second use or expired token rejected
-- [ ] Rate limits return 429 when exceeded
-- [ ] Successful verify creates session and marks token used
+- [x] Plain token never persisted; only hash in `magic_link_token`
+- [x] Second use or expired token rejected
+- [x] Rate limits return 429 when exceeded
+- [x] Successful verify creates session and marks token used
 
 **Verification:**
-- [ ] `pytest tests/auth/test_magic_link.py` passes
-- [ ] Rate limit test: 4th request in hour → 429
+- [x] `pytest tests/auth/test_magic_link.py` passes
+- [x] Rate limit test: 4th request in hour → 429
 
 **Dependencies:** Task 3
 

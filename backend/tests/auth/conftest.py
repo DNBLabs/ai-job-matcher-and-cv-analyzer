@@ -37,6 +37,7 @@ def auth_settings() -> Settings:
     return Settings(
         app_env="development",
         allowed_origins="http://localhost:5173",
+        api_base_url="http://testserver",
         google_oauth_redirect_uri="http://testserver/auth/google/callback",
         post_auth_redirect_url="http://localhost:5173/dashboard",
     )
