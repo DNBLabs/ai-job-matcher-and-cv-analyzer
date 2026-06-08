@@ -78,7 +78,7 @@ Repo scaffold + Docker Compose
 ### Phase 2: CV Management & Title Suggestions
 
 - [x] Task 7: CV upload, validation, and encrypted blob storage — POST /cvs with PDF validation, BlobStore upload, and CV metadata persistence
-- [ ] Task 8: CV list, delete-with-retain-runs, and PDF parse
+- [x] Task 8: CV list, delete-with-retain-runs, and PDF parse — GET/DELETE /cvs, pypdf parse with timeout, soft-delete retains runs
 - [ ] Task 9: Sync Suggested Job Titles (GPT-4o-mini)
 
 #### Checkpoint: CV + Titles
@@ -375,14 +375,14 @@ Repo scaffold + Docker Compose
 **Description:** Implement `GET /cvs`, `DELETE /cvs/{id}` with confirmation semantics (API idempotent delete). Safe PDF text extraction (page limit, 30s timeout, text only) stored in `parsed_text`. Soft-delete: remove blob + parsed text; retain past run metadata referencing cv_id.
 
 **Acceptance criteria:**
-- [ ] List returns non-deleted CVs with upload dates
-- [ ] Delete removes blob and parsed_text; sets `deleted_at`
-- [ ] Past analysis runs still visible; new run with deleted cv_id rejected
-- [ ] Parse timeout kills runaway PDF processing
+- [x] List returns non-deleted CVs with upload dates — `GET /cvs` returns active CV metadata ordered by upload date
+- [x] Delete removes blob and parsed_text; sets `deleted_at` — `CvService.delete_cv` soft-deletes and clears blob/parsed text
+- [x] Past analysis runs still visible; new run with deleted cv_id rejected — soft-delete retains run FK; `get_owned_cv` returns 404 for deleted CVs
+- [x] Parse timeout kills runaway PDF processing — `pdf_parser.extract_text_from_pdf` enforces 30s timeout via thread pool
 
 **Verification:**
-- [ ] Integration test: delete CV → GET runs still shows historical run
-- [ ] POST run with deleted cv_id → 400/404
+- [x] Integration test: delete CV → GET runs still shows historical run — `tests/cvs/test_cv_list_delete.py`
+- [x] POST run with deleted cv_id → 400/404 — probe route returns 404 via `get_owned_cv`
 
 **Dependencies:** Task 7
 

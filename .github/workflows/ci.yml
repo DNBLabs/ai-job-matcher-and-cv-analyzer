@@ -74,7 +74,10 @@ jobs:
         run: pytest tests/auth/test_logout.py tests/auth/test_ingress_rate_limit.py tests/auth/test_idor_routing.py -v
 
       - name: CV upload and PDF validation tests (Task 7)
-        run: pytest tests/validation/test_pdf.py tests/cvs/ -v
+        run: pytest tests/validation/test_pdf.py tests/cvs/test_cv_upload.py -v
+
+      - name: CV list, delete, and PDF parse tests (Task 8)
+        run: pytest tests/services/test_pdf_parser.py tests/cvs/test_cv_list_delete.py -v
 
       - name: Apply database migrations (Task 2)
         # Source: https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
