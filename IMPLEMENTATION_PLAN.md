@@ -79,12 +79,12 @@ Repo scaffold + Docker Compose
 
 - [x] Task 7: CV upload, validation, and encrypted blob storage — POST /cvs with PDF validation, BlobStore upload, and CV metadata persistence
 - [x] Task 8: CV list, delete-with-retain-runs, and PDF parse — GET/DELETE /cvs, pypdf parse with timeout, soft-delete retains runs
-- [ ] Task 9: Sync Suggested Job Titles (GPT-4o-mini)
+- [x] Task 9: Sync Suggested Job Titles (GPT-4o-mini) — Added POST /cvs/{id}/suggest-titles with LlmClient port, OpenAiLlmClient (GPT-4o-mini structured output), TitleSuggestionService, FinOps audit_log metadata, owner-scoped auth, fake LLM tests, and CI gate.
 
 #### Checkpoint: CV + Titles
-- [ ] Upload PDF → see named CV in list → delete with confirmation
-- [ ] Title suggestions return in &lt;10s with 3–5 titles + rationales
-- [ ] Integration tests pass for CV lifecycle
+- [x] Upload PDF → see named CV in list → delete with confirmation
+- [x] Title suggestions return in &lt;10s with 3–5 titles + rationales
+- [x] Integration tests pass for CV lifecycle
 
 ---
 
@@ -398,14 +398,14 @@ Repo scaffold + Docker Compose
 **Description:** Implement `POST /cvs/{id}/suggest-titles` calling OpenAI GPT-4o-mini with structured output (3–5 titles + rationale). Use fake LLM in tests. Log token/cost to FinOps audit (no CV content in logs). Enforce owner scope.
 
 **Acceptance criteria:**
-- [ ] Returns `{ titles: [{ title, rationale }] }` within sync API timeout
-- [ ] Uses parsed CV text, not raw PDF bytes, in prompt
-- [ ] FinOps tokens logged; malformed LLM response handled gracefully
-- [ ] Requires authenticated owner
+- [x] Returns `{ titles: [{ title, rationale }] }` within sync API timeout
+- [x] Uses parsed CV text, not raw PDF bytes, in prompt
+- [x] FinOps tokens logged; malformed LLM response handled gracefully
+- [x] Requires authenticated owner
 
 **Verification:**
-- [ ] Unit test with fake LLM returning valid JSON
-- [ ] Manual call returns titles for sample CV
+- [x] Unit test with fake LLM returning valid JSON
+- [x] Manual call returns titles for sample CV — Verified locally via magic-link auth, CV upload, and POST /cvs/{id}/suggest-titles with live OpenAI key.
 
 **Dependencies:** Task 8
 

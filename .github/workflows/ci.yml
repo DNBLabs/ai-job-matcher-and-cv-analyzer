@@ -79,6 +79,10 @@ jobs:
       - name: CV list, delete, and PDF parse tests (Task 8)
         run: pytest tests/services/test_pdf_parser.py tests/cvs/test_cv_list_delete.py -v
 
+      - name: Sync Suggested Job Titles tests (Task 9)
+        # Fake LLM in tests; no OPENAI_API_KEY required in CI.
+        run: pytest tests/services/test_title_suggestion_service.py tests/cvs/test_suggest_titles.py -v
+
       - name: Apply database migrations (Task 2)
         # Source: https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
         run: alembic upgrade head
