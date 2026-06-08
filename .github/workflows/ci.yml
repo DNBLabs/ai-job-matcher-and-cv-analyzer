@@ -73,6 +73,9 @@ jobs:
       - name: Sign-out, ingress rate limits, and IDOR routing tests (Task 6)
         run: pytest tests/auth/test_logout.py tests/auth/test_ingress_rate_limit.py tests/auth/test_idor_routing.py -v
 
+      - name: CV upload and PDF validation tests (Task 7)
+        run: pytest tests/validation/test_pdf.py tests/cvs/ -v
+
       - name: Apply database migrations (Task 2)
         # Source: https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
         run: alembic upgrade head

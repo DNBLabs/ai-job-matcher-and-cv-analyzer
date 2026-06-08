@@ -77,7 +77,7 @@ Repo scaffold + Docker Compose
 
 ### Phase 2: CV Management & Title Suggestions
 
-- [ ] Task 7: CV upload, validation, and encrypted blob storage
+- [x] Task 7: CV upload, validation, and encrypted blob storage — POST /cvs with PDF validation, BlobStore upload, and CV metadata persistence
 - [ ] Task 8: CV list, delete-with-retain-runs, and PDF parse
 - [ ] Task 9: Sync Suggested Job Titles (GPT-4o-mini)
 
@@ -351,14 +351,14 @@ Repo scaffold + Docker Compose
 **Description:** Implement `POST /cvs` (multipart: PDF + name) with MIME + magic-byte validation, 5 MB cap, safe parse timeout stub. Store PDF at `cvs/{user_id}/{uuid}.pdf` via `BlobStore`. Persist CV metadata in Postgres.
 
 **Acceptance criteria:**
-- [ ] Rejects non-PDF, oversize files, and malformed magic bytes
-- [ ] Blob key non-guessable (UUID); user-scoped prefix
-- [ ] Returns CV record with id, name, uploaded_at
-- [ ] No CV content in logs
+- [x] Rejects non-PDF, oversize files, and malformed magic bytes — `validation/pdf.py` MIME, 5 MB cap, and `%PDF-` magic-byte checks
+- [x] Blob key non-guessable (UUID); user-scoped prefix — `cvs/{user_id}/{uuid}.pdf` via `CvService.upload_cv`
+- [x] Returns CV record with id, name, uploaded_at — `POST /cvs` returns `CvResponse`
+- [x] No CV content in logs — upload path logs no file bytes or parsed text
 
 **Verification:**
-- [ ] Integration test: upload valid PDF → blob exists → DB row created
-- [ ] Upload `.exe` renamed to `.pdf` rejected
+- [x] Integration test: upload valid PDF → blob exists → DB row created — `tests/cvs/test_cv_upload.py`
+- [x] Upload `.exe` renamed to `.pdf` rejected — `test_upload_exe_renamed_as_pdf_is_rejected`
 
 **Dependencies:** Task 1, Task 6
 

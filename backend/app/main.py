@@ -7,6 +7,7 @@ from app.api.errors import register_exception_handlers
 from app.api.middleware.rate_limit import IngressRateLimitMiddleware
 from app.api.middleware.security_headers import SecurityHeadersMiddleware
 from app.api.routes.auth import router as auth_router
+from app.api.routes.cvs import router as cvs_router
 from app.config import Settings, get_settings
 from app.db.session import get_session_factory
 
@@ -45,6 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.add_middleware(IngressRateLimitMiddleware)
     register_exception_handlers(application, runtime_settings)
     application.include_router(auth_router)
+    application.include_router(cvs_router)
 
     @application.get("/health")
     async def health_check() -> dict[str, str]:

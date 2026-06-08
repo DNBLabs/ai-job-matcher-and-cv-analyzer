@@ -38,6 +38,31 @@ class CvRepository:
         )
         return self._session.scalar(statement)
 
+    def create(
+        self,
+        *,
+        cv_id: uuid.UUID,
+        user_id: uuid.UUID,
+        name: str,
+        blob_key: str,
+    ) -> Cv:
+        """Persist a new CV metadata row for an uploaded PDF.
+
+        Args:
+            cv_id: Server-generated CV primary key.
+            user_id: Owning User Account id.
+            name: Display name for the CV.
+            blob_key: Fully qualified blob storage key including prefix.
+
+        Returns:
+            Cv: Persisted CV row.
+        """
+        cv = Cv(id=cv_id, user_id=user_id, name=name, blob_key=blob_key)
+        self._session.add(cv)
+        self._session.commit()
+        self._session.refresh(cv)
+        return cv
+
     def list_active_for_user(self, user_id: uuid.UUID) -> list[Cv]:
         """Return non-deleted CVs for the user, most recently uploaded first.
 

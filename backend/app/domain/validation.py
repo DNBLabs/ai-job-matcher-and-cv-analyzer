@@ -10,6 +10,7 @@ _EMAIL_MAX_LENGTH = 320
 _EMAIL_PATTERN = re.compile(r"^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$")
 _MATCH_SCORE_MIN = 0
 _MATCH_SCORE_MAX = 100
+_CV_NAME_MAX_LENGTH = 200
 
 
 def normalize_email(email: str) -> str:
@@ -35,6 +36,26 @@ def normalize_email(email: str) -> str:
     if not _EMAIL_PATTERN.match(normalized):
         raise ValueError("email format is invalid")
     return normalized
+
+
+def validate_cv_name(name: str) -> str:
+    """Normalize and validate a CV display name from multipart form input.
+
+    Args:
+        name: Raw CV name submitted with the PDF upload.
+
+    Returns:
+        str: Trimmed name safe for database storage.
+
+    Raises:
+        ValueError: When the name is empty or exceeds the column limit.
+    """
+    if not name or not name.strip():
+        raise ValueError("CV name is required")
+    trimmed = name.strip()
+    if len(trimmed) > _CV_NAME_MAX_LENGTH:
+        raise ValueError("CV name is too long")
+    return trimmed
 
 
 def validate_match_score(score: int) -> int:
