@@ -6,11 +6,13 @@ from app.adapters.local.in_process_job_queue import InProcessJobQueue
 from app.adapters.local.log_notification import LogNotificationPort
 from app.adapters.local.memory_blob_store import MemoryBlobStore
 from app.adapters.local.rabbitmq_job_queue import RabbitMQJobQueue
+from app.adapters.openai_client import OpenAiLlmClient
 from app.config import Settings
 from app.ports.blob_store import BlobStore
 from app.ports.job_queue import JobQueue
+from app.ports.llm_client import LlmClient
 from app.ports.notification import NotificationPort
-from app.ports.secret_provider import SecretProvider
+from app.ports.secret_provider import SecretNotFoundError, SecretProvider
 
 
 def create_blob_store(settings: Settings) -> BlobStore:
@@ -87,3 +89,20 @@ def create_secret_provider(settings: Settings) -> SecretProvider:
     if settings.secret_provider_backend == "env":
         return EnvSecretProvider()
     raise ValueError(f"Unsupported secret provider backend: {settings.secret_provider_backend}")
+
+
+def create_llm_client(settings: Settings, secret_provider: SecretProvider) -> LlmClient:
+    """Return an LlmClient adapter wired to OpenAI for title suggestions.
+
+    Args:
+        settings: Application settings describing the title suggestion model.
+        secret_provider: SecretProvider port for resolving ``OPENAI_API_KEY``.
+
+    Returns:
+        LlmClient: OpenAI-backed structured completion client.
+
+    Raises:
+        SecretNotFoundError: When ``OPENAI_API_KEY`` is missing from the provider.
+    """
+    api_key = secret_provider.get("OPENAI_API_KEY")
+    return OpenAiLlmClient(api_key=api_key, model=settings.openai_title_model)

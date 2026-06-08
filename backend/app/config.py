@@ -71,6 +71,10 @@ class Settings(BaseSettings):
         default="http://localhost:8000",
         description="Public API origin used to build magic-link verification URLs.",
     )
+    openai_title_model: str = Field(
+        default="gpt-4o-mini",
+        description="OpenAI chat model used for sync Suggested Job Titles.",
+    )
 
     @field_validator("allowed_origins")
     @classmethod

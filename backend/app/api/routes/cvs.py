@@ -8,15 +8,23 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.adapters.factory import create_blob_store
-from app.api.deps import get_current_user, get_settings_dependency
+from app.adapters.factory import create_blob_store, create_llm_client, create_secret_provider
+from app.api.deps import get_current_user, get_owned_cv, get_settings_dependency
 from app.api.validation import NOT_FOUND_DETAIL
 from app.config import Settings
 from app.db.models import Cv, UserAccount
 from app.db.session import get_db_session
+from app.domain.title_suggestion import TitleSuggestionResponse
 from app.ports.blob_store import BlobStore
+from app.ports.llm_client import LlmClient, LlmClientError
+from app.ports.secret_provider import SecretProvider
 from app.services.cv_service import CvService
 from app.services.pdf_parser import PdfParseError
+from app.services.title_suggestion_service import (
+    CvTextUnavailableError,
+    TitleSuggestionResponseError,
+    TitleSuggestionService,
+)
 from app.validation.pdf import PdfValidationError
 
 router = APIRouter(prefix="/cvs", tags=["cvs"])
@@ -28,6 +36,34 @@ class CvResponse(BaseModel):
     id: UUID
     name: str = Field(..., max_length=200)
     uploaded_at: datetime
+
+
+def get_secret_provider(settings: Settings = Depends(get_settings_dependency)) -> SecretProvider:
+    """Return the configured SecretProvider adapter for runtime secrets.
+
+    Args:
+        settings: Runtime application settings.
+
+    Returns:
+        SecretProvider: Environment-backed implementation for local development.
+    """
+    return create_secret_provider(settings)
+
+
+def get_llm_client(
+    settings: Settings = Depends(get_settings_dependency),
+    secret_provider: SecretProvider = Depends(get_secret_provider),
+) -> LlmClient:
+    """Return the configured LlmClient adapter for title suggestions.
+
+    Args:
+        settings: Runtime application settings.
+        secret_provider: SecretProvider port for resolving OpenAI credentials.
+
+    Returns:
+        LlmClient: OpenAI-backed structured completion client.
+    """
+    return create_llm_client(settings, secret_provider)
 
 
 def get_blob_store(settings: Settings = Depends(get_settings_dependency)) -> BlobStore:
@@ -145,3 +181,35 @@ async def delete_cv(
     )
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=NOT_FOUND_DETAIL)
+
+
+@router.post("/{cv_id}/suggest-titles", response_model=TitleSuggestionResponse)
+async def suggest_titles(
+    cv: Cv = Depends(get_owned_cv),
+    current_user: UserAccount = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+    llm_client: LlmClient = Depends(get_llm_client),
+) -> TitleSuggestionResponse:
+    """Return sync AI Suggested Job Titles for an owned CV.
+
+    Args:
+        cv: Owner-scoped CV row resolved from the route path.
+        current_user: Authenticated User Account from the session cookie.
+        db: Request-scoped database session.
+        llm_client: Structured title suggestion provider.
+
+    Returns:
+        TitleSuggestionResponse: Three to five title suggestions with rationales.
+
+    Raises:
+        HTTPException: When CV text is unavailable or the LLM provider fails.
+    """
+    try:
+        return TitleSuggestionService(db, llm_client).suggest_titles(current_user, cv)
+    except CvTextUnavailableError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except (LlmClientError, TitleSuggestionResponseError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Title suggestions are temporarily unavailable",
+        ) from error
