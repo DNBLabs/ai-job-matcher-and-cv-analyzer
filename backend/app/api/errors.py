@@ -1,4 +1,4 @@
-"""Centralized HTTP error handlers that avoid leaking internal details."""
+"""Centralized HTTP error handlers and response helpers."""
 
 import logging
 
@@ -8,6 +8,23 @@ from fastapi.responses import JSONResponse
 from app.config import Settings
 
 logger = logging.getLogger(__name__)
+
+
+def rate_limit_response(*, retry_after_seconds: int, detail: str = "Too many requests") -> JSONResponse:
+    """Return a 429 response with ``Retry-After`` semantics for rate-limited clients.
+
+    Args:
+        retry_after_seconds: Seconds until the client may retry.
+        detail: Generic client-facing error message.
+
+    Returns:
+        JSONResponse: Sanitized rate-limit payload with retry guidance.
+    """
+    return JSONResponse(
+        status_code=429,
+        content={"detail": detail},
+        headers={"Retry-After": str(retry_after_seconds)},
+    )
 
 
 def register_exception_handlers(application: FastAPI, settings: Settings) -> None:

@@ -39,7 +39,10 @@ def magic_link_test_app(auth_settings, db_session: Session, notification_port: F
     from app.main import create_app
     from app.db.session import get_db_session
 
+    from tests.auth.conftest import _bind_test_session_factory
+
     application = create_app(settings=auth_settings)
+    _bind_test_session_factory(application, db_session)
 
     def override_get_db_session():
         try:

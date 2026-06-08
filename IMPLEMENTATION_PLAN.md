@@ -66,12 +66,12 @@ Repo scaffold + Docker Compose
 - [x] Task 3: Session store and auth middleware (Postgres-backed) — Added SessionService (24h idle / 7d absolute expiry, rotation, cleanup), HttpOnly SameSite=Lax cookie helpers, get_current_user dependency, session-id boundary validation, and tests in tests/auth/.
 - [x] Task 4: Google OAuth sign-in flow — Added GET /auth/google/login and /callback with CSRF state cookie, SecretProvider-backed client credentials, Google token/userinfo exchange, user upsert by google_sub/email, session rotation, dashboard redirect, audit_log events, security hardening (email_verified gate, google_sub conflict check, open-redirect allowlist, oauth_state cleared on failure), and tests in tests/auth/test_google_oauth.py.
 - [x] Task 5: Magic link sign-in flow — Added POST /auth/magic-link and GET /auth/magic-link/verify with SHA-256 hash-only storage, 15-minute single-use tokens, NotificationPort log adapter, Postgres rate_limit_counters (3/email/hour, 10/IP/hour), session rotation, audit_log events, and tests in tests/auth/test_magic_link.py.
-- [ ] Task 6: Sign-out, rate limits, and IDOR-safe routing
+- [x] Task 6: Sign-out, rate limits, and IDOR-safe routing — Added POST /auth/logout with session deletion and cookie clear, IngressRateLimitMiddleware (~100 req/min/IP with Retry-After), owner-scoped deps (get_owned_cv/run/result, require_admin), API validation helpers, JobMatchResultRepository, and tests in tests/auth/test_logout.py, test_ingress_rate_limit.py, test_idor_routing.py.
 
 #### Checkpoint: Auth
 - [ ] Job Seeker can sign in via Google or magic link locally
-- [ ] Session persists across browser restart; sign-out clears cookie
-- [ ] Cross-account resource IDs return 404
+- [x] Session persists across browser restart; sign-out clears cookie
+- [x] Cross-account resource IDs return 404
 
 ---
 
@@ -327,14 +327,14 @@ Repo scaffold + Docker Compose
 **Description:** Implement `POST /auth/logout`, API ingress rate limit (~100 req/min/IP via Postgres counters), and owner-scoped resource access returning **404** on cross-account IDs (not 403). Add API-level request validation helpers.
 
 **Acceptance criteria:**
-- [ ] Logout deletes session row and clears cookie
-- [ ] IP rate limit returns 429 with Retry-After semantics
-- [ ] CV/run/result endpoints scoped to session `user_id`; foreign IDs → 404
-- [ ] Admin routes return 404 for non-admin (consistent with IDOR policy)
+- [x] Logout deletes session row and clears cookie
+- [x] IP rate limit returns 429 with Retry-After semantics
+- [x] CV/run/result endpoints scoped to session `user_id`; foreign IDs → 404
+- [x] Admin routes return 404 for non-admin (consistent with IDOR policy)
 
 **Verification:**
-- [ ] Integration tests for 404 on wrong user's CV/run ID
-- [ ] Rate limit unit test with fake clock or counter fixture
+- [x] Integration tests for 404 on wrong user's CV/run ID
+- [x] Rate limit unit test with fake clock or counter fixture
 
 **Dependencies:** Task 4, Task 5
 
