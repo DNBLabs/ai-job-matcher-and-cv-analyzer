@@ -91,7 +91,7 @@ Repo scaffold + Docker Compose
 ### Phase 3: Analysis Run Core (Queue + Worker Skeleton)
 
 - [x] Task 10: Analysis orchestrator, quota, and concurrency rules — `job_search.py` validation, `AnalysisOrchestrator` with quota/concurrency gates and post-commit queue publish
-- [ ] Task 11: Run API endpoints and status state machine
+- [x] Task 11: Run API endpoints and status state machine — `runs.py` with GET/POST /runs, quota, results; orchestrator wired; 8 httpx integration tests
 - [ ] Task 12: Worker consumer skeleton and queue wiring
 
 #### Checkpoint: Run Orchestration
@@ -446,14 +446,14 @@ Repo scaffold + Docker Compose
 **Description:** Implement `GET /runs`, `GET /runs/{id}`, `GET /runs/{id}/results`, `POST /runs`, `GET /runs/quota`. Wire orchestrator. Status enum: Queued → Scraping → Scoring → Complete | Failed.
 
 **Acceptance criteria:**
-- [ ] All endpoints match PRD contracts
-- [ ] `GET /runs/quota` returns `{ remaining, concurrent_blocked }`
-- [ ] Results endpoint only for Complete runs (or partial with status check)
-- [ ] Owner-scoped 404 on foreign run IDs
+- [x] All endpoints match PRD contracts — `runs.py` exposes GET/POST `/runs`, GET `/runs/{id}`, GET `/runs/{id}/results`, GET `/runs/quota` per PRD § API contracts
+- [x] `GET /runs/quota` returns `{ remaining, concurrent_blocked }` — `RunQuotaResponse` via `AnalysisOrchestrator.get_run_quota`
+- [x] Results endpoint only for Complete runs (or partial with status check) — `GET /runs/{id}/results` returns 409 until status is `complete`
+- [x] Owner-scoped 404 on foreign run IDs — `get_owned_analysis_run` dependency returns generic 404
 
 **Verification:**
-- [ ] httpx integration tests for happy path and quota 429
-- [ ] OpenAPI schema generated and matches PRD
+- [x] httpx integration tests for happy path and quota 429 — `tests/runs/test_runs_api.py` (8 tests)
+- [x] OpenAPI schema generated and matches PRD — `test_openapi_schema_includes_run_contracts` asserts paths and `RunQuotaResponse`
 
 **Dependencies:** Task 10
 
