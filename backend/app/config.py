@@ -75,6 +75,10 @@ class Settings(BaseSettings):
         default="gpt-4o-mini",
         description="OpenAI chat model used for sync Suggested Job Titles.",
     )
+    openai_scoring_model: str = Field(
+        default="gpt-4o",
+        description="OpenAI chat model used for per-listing Analysis Run scoring.",
+    )
 
     @field_validator("allowed_origins")
     @classmethod

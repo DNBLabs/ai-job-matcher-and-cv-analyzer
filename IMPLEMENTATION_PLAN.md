@@ -104,7 +104,7 @@ Repo scaffold + Docker Compose
 ### Phase 4: Adzuna Path End-to-End (First Vertical Slice)
 
 - [x] Task 13: Job Source registry and Adzuna adapter — Added `NormalisedListing`, `JobSource` protocol, `JobSourceRegistry`, and `AdzunaJobSource` (httpx, retry on 429/5xx/timeout, field mapping, no live network in CI); 19 tests in `tests/job_sources/test_adzuna.py` with recorded fixture.
-- [ ] Task 14: Scoring service (GPT-4o, schema validation, FinOps logging)
+- [x] Task 14: Scoring service (GPT-4o, schema validation, FinOps logging) — Added `ScoringLlmOutput`/`ScoredListing`/`RunScoringResult` domain schemas, `ScoringLlmClient` port + `OpenAiLlmClient.score_listing` (GPT-4o structured output), `ScoringService` (per-listing 1-retry-then-skip, 100-LLM-call/run hard cap with retries counted against the budget, per-run token/cost aggregation via `estimate_gpt4o_usd`, no CV/prompt logging), fake scoring client, 9 tests in `tests/services/test_scoring_service.py`, and CI gate.
 - [ ] Task 15: Worker pipeline — fetch Adzuna → score → persist results
 
 #### Checkpoint: Adzuna-Only Run
@@ -516,14 +516,14 @@ Repo scaffold + Docker Compose
 **Description:** Implement scoring service accepting CV text + listing, calling GPT-4o for dual-score JSON (ADR-0003). Pydantic validation; 1 retry on malformed output; skip listing on second failure. Aggregate token counts for FinOps. Hard cap: 100 scoring calls/run enforced in worker.
 
 **Acceptance criteria:**
-- [ ] Validated output: match_score 0–100, interview_likelihood enum, breakdown arrays
-- [ ] Malformed JSON retried once then skipped
-- [ ] Per-call and per-run token/cost aggregation
-- [ ] No full prompts or CV text in logs
+- [x] Validated output: match_score 0–100, interview_likelihood enum, breakdown arrays — `ScoringService._to_scored_listing` runs `validate_match_score`; `ScoringLlmOutput` enforces enum + breakdown arrays
+- [x] Malformed JSON retried once then skipped — `_score_one` retries once on `LlmClientError`/`ValueError`, then raises `ScoringSkippedError`
+- [x] Per-call and per-run token/cost aggregation — `score_run` sums `LlmUsage` tokens into `ScoringFinops` with `estimate_gpt4o_usd`
+- [x] No full prompts or CV text in logs — service logs attempt counts only; no listing identity, CV text, or prompts
 
 **Verification:**
-- [ ] Unit tests with fake LLM: valid JSON, invalid JSON, retry success
-- [ ] Cap test: 101st listing not scored
+- [x] Unit tests with fake LLM: valid JSON, invalid JSON, retry success — `tests/services/test_scoring_service.py` (8 tests)
+- [x] Cap test: 101st listing not scored — `test_score_run_enforces_hard_cap_of_100_calls`
 
 **Dependencies:** Task 8
 
