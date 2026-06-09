@@ -38,3 +38,19 @@ class JobMatchResultRepository:
             )
         )
         return self._session.scalar(statement)
+
+    def list_for_run(self, run_id: uuid.UUID) -> list[JobMatchResult]:
+        """Return scored listings for an Analysis Run ordered by match score descending.
+
+        Args:
+            run_id: Parent Analysis Run primary key.
+
+        Returns:
+            list[JobMatchResult]: Results for the run, highest match score first.
+        """
+        statement = (
+            select(JobMatchResult)
+            .where(JobMatchResult.analysis_run_id == run_id)
+            .order_by(JobMatchResult.match_score.desc())
+        )
+        return list(self._session.scalars(statement))

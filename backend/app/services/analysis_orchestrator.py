@@ -12,6 +12,7 @@ from app.db.repositories.cv_repository import CvRepository
 from app.domain.analysis_run import AnalysisRunStatus
 from app.domain.job_search import JobSearch, validate_job_search
 from app.domain.quota import (
+    RunQuotaDecision,
     count_runs_toward_quota,
     evaluate_run_quota,
     has_active_run_from_statuses,
@@ -86,17 +87,7 @@ class AnalysisOrchestrator:
         if reference_time.tzinfo is None:
             raise ValueError("as_of must be timezone-aware")
 
-        user_runs = AnalysisRunRepository(self._session).list_for_user(user.id)
-        run_snapshots = [
-            (self._as_utc(run.created_at), run.status) for run in user_runs
-        ]
-        runs_in_window = count_runs_toward_quota(run_snapshots, as_of=reference_time)
-        active_blocked = has_active_run_from_statuses([status for _, status in run_snapshots])
-        quota_decision = evaluate_run_quota(
-            is_unlimited=user.is_unlimited,
-            runs_started_in_last_24h=runs_in_window,
-            has_active_run=active_blocked,
-        )
+        quota_decision = self.get_run_quota(user, as_of=reference_time)
 
         if not quota_decision.can_start:
             if quota_decision.concurrent_blocked:
@@ -106,6 +97,52 @@ class AnalysisOrchestrator:
         run = self._persist_run(user=user, cv_id=cv.id, job_search=job_search)
         self._job_queue.publish({"analysis_run_id": str(run.id)})
         return run
+
+    def get_run_quota(
+        self,
+        user: UserAccount,
+        *,
+        as_of: datetime | None = None,
+    ) -> RunQuotaDecision:
+        """Evaluate remaining quota and concurrency state for the authenticated user.
+
+        Args:
+            user: Authenticated User Account requesting quota metadata.
+            as_of: Reference time for rolling quota evaluation (defaults to UTC now).
+
+        Returns:
+            RunQuotaDecision: Remaining runs and concurrent-block metadata.
+
+        Raises:
+            ValueError: When as_of is naive.
+        """
+        reference_time = as_of or datetime.now(UTC)
+        if reference_time.tzinfo is None:
+            raise ValueError("as_of must be timezone-aware")
+
+        run_snapshots = self._user_run_snapshots(user.id)
+        runs_in_window = count_runs_toward_quota(run_snapshots, as_of=reference_time)
+        active_blocked = has_active_run_from_statuses([status for _, status in run_snapshots])
+        return evaluate_run_quota(
+            is_unlimited=user.is_unlimited,
+            runs_started_in_last_24h=runs_in_window,
+            has_active_run=active_blocked,
+        )
+
+    def _user_run_snapshots(
+        self,
+        user_id: uuid.UUID,
+    ) -> list[tuple[datetime, AnalysisRunStatus]]:
+        """Load run timestamps and statuses for quota evaluation.
+
+        Args:
+            user_id: Authenticated User Account id.
+
+        Returns:
+            list[tuple[datetime, AnalysisRunStatus]]: Created-at and status pairs.
+        """
+        user_runs = AnalysisRunRepository(self._session).list_for_user(user_id)
+        return [(self._as_utc(run.created_at), run.status) for run in user_runs]
 
     def _persist_run(
         self,
