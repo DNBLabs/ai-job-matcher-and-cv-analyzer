@@ -90,7 +90,7 @@ Repo scaffold + Docker Compose
 
 ### Phase 3: Analysis Run Core (Queue + Worker Skeleton)
 
-- [ ] Task 10: Analysis orchestrator, quota, and concurrency rules
+- [x] Task 10: Analysis orchestrator, quota, and concurrency rules — `job_search.py` validation, `AnalysisOrchestrator` with quota/concurrency gates and post-commit queue publish
 - [ ] Task 11: Run API endpoints and status state machine
 - [ ] Task 12: Worker consumer skeleton and queue wiring
 
@@ -404,6 +404,7 @@ Repo scaffold + Docker Compose
 - [x] Requires authenticated owner
 
 **Verification:**
+
 - [x] Unit test with fake LLM returning valid JSON
 - [x] Manual call returns titles for sample CV — Verified locally via magic-link auth, CV upload, and POST /cvs/{id}/suggest-titles with live OpenAI key.
 
@@ -422,14 +423,14 @@ Repo scaffold + Docker Compose
 **Description:** Domain service to create Analysis Run records, validate Job Search input (UK cities, remote, filter enums, field length limits), enforce quota and concurrent-run rules, and publish `analysis_run_id` to `JobQueue`.
 
 **Acceptance criteria:**
-- [ ] Rejects run when quota exhausted (unless `is_unlimited`)
-- [ ] Rejects run when another run in Queued/Scraping/Scoring for user
-- [ ] Validates `job_search_json` schema
-- [ ] Publishes queue message after DB commit
+- [x] Rejects run when quota exhausted (unless `is_unlimited`) — `RunQuotaExceededError` in `AnalysisOrchestrator.start_analysis_run`
+- [x] Rejects run when another run in Queued/Scraping/Scoring for user — `ConcurrentRunBlockedError` via `has_active_run_from_statuses`
+- [x] Validates `job_search_json` schema — `validate_job_search` in `domain/job_search.py` (UK cities, Remote, filter enums, length limits)
+- [x] Publishes queue message after DB commit — `_persist_run` commits before `job_queue.publish({"analysis_run_id": ...})`
 
 **Verification:**
-- [ ] Unit tests: quota edge cases (rolling 24h window, unlimited flag)
-- [ ] Unit test: concurrent block
+- [x] Unit tests: quota edge cases (rolling 24h window, unlimited flag) — `tests/services/test_analysis_orchestrator.py`
+- [x] Unit test: concurrent block — `test_start_analysis_run_blocks_concurrent_active_run`
 
 **Dependencies:** Task 2, Task 1
 
