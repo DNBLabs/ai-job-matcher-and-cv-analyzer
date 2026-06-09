@@ -92,6 +92,13 @@ jobs:
       - name: Worker consumer and handler tests (Task 12)
         run: pytest tests/test_worker.py -v
 
+      - name: Job Source registry and Adzuna adapter tests (Task 13)
+        run: pytest tests/job_sources/test_adzuna.py -v
+
+      - name: Scoring service tests (Task 14)
+        # Fake scoring LLM in tests; no OPENAI_API_KEY required in CI.
+        run: pytest tests/services/test_scoring_service.py -v
+
       - name: Apply database migrations (Task 2)
         # Source: https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
         run: alembic upgrade head

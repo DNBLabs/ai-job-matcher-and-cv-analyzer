@@ -105,4 +105,8 @@ def create_llm_client(settings: Settings, secret_provider: SecretProvider) -> Ll
         SecretNotFoundError: When ``OPENAI_API_KEY`` is missing from the provider.
     """
     api_key = secret_provider.get("OPENAI_API_KEY")
-    return OpenAiLlmClient(api_key=api_key, model=settings.openai_title_model)
+    return OpenAiLlmClient(
+        api_key=api_key,
+        title_model=settings.openai_title_model,
+        scoring_model=settings.openai_scoring_model,
+    )
