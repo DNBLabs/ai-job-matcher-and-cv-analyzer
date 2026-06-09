@@ -7,6 +7,7 @@ from typing import Any
 
 from app.adapters.factory import (
     create_adzuna_job_source,
+    create_indeed_job_source,
     create_job_queue,
     create_scoring_llm_client,
     create_secret_provider,
@@ -61,7 +62,10 @@ def main() -> None:
 
     secret_provider = create_secret_provider(settings)
     pipeline = AnalysisRunPipeline(
-        job_source=create_adzuna_job_source(secret_provider),
+        job_sources=[
+            ("adzuna", create_adzuna_job_source(secret_provider)),
+            ("indeed", create_indeed_job_source()),
+        ],
         scoring_service=ScoringService(create_scoring_llm_client(settings, secret_provider)),
     )
 
