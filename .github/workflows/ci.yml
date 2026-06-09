@@ -83,6 +83,9 @@ jobs:
         # Fake LLM in tests; no OPENAI_API_KEY required in CI.
         run: pytest tests/services/test_title_suggestion_service.py tests/cvs/test_suggest_titles.py -v
 
+      - name: Analysis orchestrator tests (Task 10)
+        run: pytest tests/domain/test_job_search.py tests/services/test_analysis_orchestrator.py -v
+
       - name: Apply database migrations (Task 2)
         # Source: https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
         run: alembic upgrade head
