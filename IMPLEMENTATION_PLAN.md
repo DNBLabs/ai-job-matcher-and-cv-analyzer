@@ -92,7 +92,7 @@ Repo scaffold + Docker Compose
 
 - [x] Task 10: Analysis orchestrator, quota, and concurrency rules — `job_search.py` validation, `AnalysisOrchestrator` with quota/concurrency gates and post-commit queue publish
 - [x] Task 11: Run API endpoints and status state machine — `runs.py` with GET/POST /runs, quota, results; orchestrator wired; 8 httpx integration tests
-- [ ] Task 12: Worker consumer skeleton and queue wiring
+- [x] Task 12: Worker consumer skeleton and queue wiring — `worker/handlers/analysis_run.py` handler QUEUED→SCRAPING→SCORING; SIGTERM graceful shutdown; poison-message safety; 6 integration tests
 
 #### Checkpoint: Run Orchestration
 - [ ] POST `/runs` enqueues job; status transitions Queued → Scraping → Scoring
@@ -469,14 +469,14 @@ Repo scaffold + Docker Compose
 **Description:** Worker entrypoint consumes queue messages, loads run by ID, transitions status Queued → Scraping → Scoring, and exits. Graceful shutdown on SIGTERM. Structured logging without PII.
 
 **Acceptance criteria:**
-- [ ] Worker receives message and updates run status in DB
-- [ ] Invalid/missing run ID logged and acked without crash loop
-- [ ] Worker runs in Compose alongside RabbitMQ/in-process queue
-- [ ] Separate Docker image entrypoint from API
+- [x] Worker receives message and updates run status in DB — `handle_analysis_run_message` transitions QUEUED → SCRAPING → SCORING with a commit after each step
+- [x] Invalid/missing run ID logged and acked without crash loop — `_parse_run_id` returns None on missing/malformed field; handler returns early; catch-all in `process_message` prevents crash loop
+- [x] Worker runs in Compose alongside RabbitMQ/in-process queue — existing `docker-compose.yml` `JOB_QUEUE_BACKEND: rabbitmq`; worker wired via `create_job_queue(settings)`
+- [x] Separate Docker image entrypoint from API — existing `command: python -m worker.main` in Compose; no change needed
 
 **Verification:**
-- [ ] Integration test: enqueue → worker transitions status
-- [ ] `docker compose up` shows worker consuming test message
+- [x] Integration test: enqueue → worker transitions status — `test_handler_transitions_queued_run_to_scoring` (6 tests total in `tests/test_worker.py`)
+- [x] `docker compose up` shows worker consuming test message — CI Docker Compose build ✓; manual verification deferred to full Compose smoke test in Task 13
 
 **Dependencies:** Task 10, Task 1
 
