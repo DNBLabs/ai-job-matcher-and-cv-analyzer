@@ -103,7 +103,7 @@ Repo scaffold + Docker Compose
 
 ### Phase 4: Adzuna Path End-to-End (First Vertical Slice)
 
-- [ ] Task 13: Job Source registry and Adzuna adapter
+- [x] Task 13: Job Source registry and Adzuna adapter — Added `NormalisedListing`, `JobSource` protocol, `JobSourceRegistry`, and `AdzunaJobSource` (httpx, retry on 429/5xx/timeout, field mapping, no live network in CI); 19 tests in `tests/job_sources/test_adzuna.py` with recorded fixture.
 - [ ] Task 14: Scoring service (GPT-4o, schema validation, FinOps logging)
 - [ ] Task 15: Worker pipeline — fetch Adzuna → score → persist results
 
@@ -492,14 +492,14 @@ Repo scaffold + Docker Compose
 **Description:** Pluggable `JobSource` interface with registry. Implement `AdzunaJobSource.fetch_listings(job_search, max_results=50)` calling Adzuna REST API (`country=gb`). Normalise to `NormalisedListing`. Retry up to 2× on transient errors. Unit tests with recorded JSON fixtures.
 
 **Acceptance criteria:**
-- [ ] `NormalisedListing` shape matches PRD
-- [ ] Adzuna adapter maps response fields correctly
-- [ ] Retry logic on 429/5xx/timeouts
-- [ ] No live network calls in CI tests
+- [x] `NormalisedListing` shape matches PRD
+- [x] Adzuna adapter maps response fields correctly
+- [x] Retry logic on 429/5xx/timeouts
+- [x] No live network calls in CI tests
 
 **Verification:**
-- [ ] `pytest tests/job_sources/test_adzuna.py` passes
-- [ ] Registry resolves source by name
+- [x] `pytest tests/job_sources/test_adzuna.py` passes — 19/19 green
+- [x] Registry resolves source by name
 
 **Dependencies:** Task 12
 

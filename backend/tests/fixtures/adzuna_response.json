@@ -1,0 +1,27 @@
+{
+  "results": [
+    {
+      "title": "Senior Python Developer",
+      "company": { "display_name": "TechCorp Ltd" },
+      "location": { "display_name": "London, Greater London" },
+      "redirect_url": "https://www.adzuna.co.uk/jobs/details/4521001",
+      "description": "We are looking for a Senior Python Developer to join our growing team. You will work on scalable backend services using FastAPI and PostgreSQL."
+    },
+    {
+      "title": "Backend Engineer",
+      "company": { "display_name": "StartupXYZ" },
+      "location": { "display_name": "Manchester, Greater Manchester" },
+      "redirect_url": "https://www.adzuna.co.uk/jobs/details/4521002",
+      "description": "Backend Engineer role working with Python, Django, and AWS. Remote-friendly team."
+    },
+    {
+      "title": "Software Engineer — Python",
+      "company": { "display_name": "Finance House PLC" },
+      "location": { "display_name": "London, Greater London" },
+      "redirect_url": "https://www.adzuna.co.uk/jobs/details/4521003",
+      "description": "Join our quantitative engineering team building real-time data pipelines in Python."
+    }
+  ],
+  "__CLASS__": "AdzunaExternalAPIJobsResults",
+  "count": 3
+}
