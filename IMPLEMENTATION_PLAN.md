@@ -105,12 +105,12 @@ Repo scaffold + Docker Compose
 
 - [x] Task 13: Job Source registry and Adzuna adapter — Added `NormalisedListing`, `JobSource` protocol, `JobSourceRegistry`, and `AdzunaJobSource` (httpx, retry on 429/5xx/timeout, field mapping, no live network in CI); 19 tests in `tests/job_sources/test_adzuna.py` with recorded fixture.
 - [x] Task 14: Scoring service (GPT-4o, schema validation, FinOps logging) — Added `ScoringLlmOutput`/`ScoredListing`/`RunScoringResult` domain schemas, `ScoringLlmClient` port + `OpenAiLlmClient.score_listing` (GPT-4o structured output), `ScoringService` (per-listing 1-retry-then-skip, 100-LLM-call/run hard cap with retries counted against the budget, per-run token/cost aggregation via `estimate_gpt4o_usd`, no CV/prompt logging), fake scoring client, 9 tests in `tests/services/test_scoring_service.py`, and CI gate.
-- [ ] Task 15: Worker pipeline — fetch Adzuna → score → persist results
+- [x] Task 15: Worker pipeline — fetch Adzuna → score → persist results — Added `AnalysisRunPipeline` driving QUEUED→SCRAPING→SCORING→COMPLETE/FAILED; SHA-256 URL dedup; `JobMatchResult` persistence with full breakdown_json; FinOps on `finops_json`; `RunPipeline` protocol in handler; factory helpers for Adzuna + scoring LLM; `FakeJobSource` test double; 15 pipeline integration tests.
 
 #### Checkpoint: Adzuna-Only Run
-- [ ] Full run completes with scored Adzuna listings in DB
-- [ ] GET `/runs/{id}/results` returns ranked results with breakdown JSON
-- [ ] FinOps metadata recorded on `analysis_run.finops_json`
+- [x] Full run completes with scored Adzuna listings in DB
+- [x] GET `/runs/{id}/results` returns ranked results with breakdown JSON
+- [x] FinOps metadata recorded on `analysis_run.finops_json`
 
 ---
 
