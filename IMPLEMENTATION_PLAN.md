@@ -116,7 +116,7 @@ Repo scaffold + Docker Compose
 
 ### Phase 5: Indeed Scraper & Partial Success
 
-- [ ] Task 16: Indeed UK scraper adapter (fixture-tested parser)
+- [x] Task 16: Indeed UK scraper adapter (fixture-tested parser) — Added IndeedJobSource (BeautifulSoup html.parser), 3-card HTML fixture, 20 fixture-based tests; beautifulsoup4 dep added (#18)
 - [ ] Task 17: Multi-source worker pipeline with retry and partial failure
 - [ ] Task 18: Source-failure metadata and run outcome rules
 
@@ -562,14 +562,14 @@ Repo scaffold + Docker Compose
 **Description:** Implement `IndeedJobSource` scraping `uk.indeed.com` with HTML parser (BeautifulSoup/selectolax). Normalise to shared listing shape. Retry 2× on transient failure. **CI uses fixture HTML fragments only** — no live Indeed in unit tests.
 
 **Acceptance criteria:**
-- [ ] Parser extracts title, company, location, url, description from fixture HTML
-- [ ] `fetch_listings` respects max_results=50
-- [ ] Retry on timeout/5xx
-- [ ] Live scrape optional behind manual smoke flag
+- [x] Parser extracts title, company, location, url, description from fixture HTML — `_extract_listing` uses `h2.jobTitle a span[title]`, `[data-testid='company-name']`, `[data-testid='text-location']`, `.job-snippet`
+- [x] `fetch_listings` respects max_results=50 — capped in `_parse_html` loop
+- [x] Retry on timeout/5xx — `_is_transient` mirrors AdzunaJobSource; 2× retries
+- [x] Live scrape optional behind manual smoke flag — documented in `indeed.py` module docstring (`SMOKE_INDEED=1`)
 
 **Verification:**
-- [ ] `pytest tests/job_sources/test_indeed_parser.py` passes on fixtures
-- [ ] Optional `SMOKE_INDEED=1` manual test documented in README
+- [x] `pytest tests/job_sources/test_indeed_parser.py` passes on fixtures — 20/20 green
+- [x] Optional `SMOKE_INDEED=1` manual test documented in README
 
 **Dependencies:** Task 13
 
