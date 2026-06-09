@@ -272,6 +272,50 @@ async def test_get_run_results_only_when_complete(
 
 
 @pytest.mark.asyncio
+async def test_get_run_results_returns_pipeline_scored_count(
+    runs_client: AsyncClient,
+    db_session: Session,
+) -> None:
+    """After the worker pipeline scores a run, GET results returns the scored listings."""
+    from app.domain.scoring_schema import ScoringLlmOutput
+    from app.services.scoring_service import ScoringService
+    from tests.fakes.fake_job_source import FakeJobSource, make_listing
+    from tests.fakes.fake_scoring_llm_client import FakeScoringLlmClient
+    from worker.pipeline import AnalysisRunPipeline
+
+    user = create_test_user(db_session)
+    cv = _create_cv(db_session, user)
+    run = _seed_run(db_session, user=user, cv=cv, status=AnalysisRunStatus.QUEUED)
+    _authenticate_client(runs_client, db_session, user)
+
+    output = ScoringLlmOutput(
+        match_score=88,
+        interview_likelihood=InterviewLikelihood.HIGH,
+        matched_skills=["Python"],
+        skill_gaps=[],
+        red_flags=[],
+        talking_points=["Highlight API work"],
+    )
+    pipeline = AnalysisRunPipeline(
+        job_source=FakeJobSource(
+            listings=[
+                make_listing(url="https://example.com/jobs/1"),
+                make_listing(url="https://example.com/jobs/2"),
+            ]
+        ),
+        scoring_service=ScoringService(FakeScoringLlmClient(behaviours=[output])),
+    )
+    pipeline.run(run, db_session)
+
+    response = await runs_client.get(f"/runs/{run.id}/results")
+
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 2
+    assert results[0]["match_score"] == 88
+
+
+@pytest.mark.asyncio
 async def test_openapi_schema_includes_run_contracts(runs_test_app) -> None:
     """Generated OpenAPI schema documents run endpoints and quota response."""
     schema = runs_test_app.openapi()

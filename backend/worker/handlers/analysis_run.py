@@ -1,15 +1,24 @@
-"""Queue message handler for Analysis Run status transitions."""
+"""Queue message handler that dispatches Analysis Run jobs to the worker pipeline."""
 
 import logging
 import uuid
-from typing import Any
+from typing import Any, Protocol
 
 from sqlalchemy.orm import Session
 
+from app.db.models import AnalysisRun
 from app.db.repositories.analysis_run_repository import AnalysisRunRepository
 from app.domain.analysis_run import AnalysisRunStatus, can_transition
 
 logger = logging.getLogger(__name__)
+
+
+class RunPipeline(Protocol):
+    """Port for the component that executes a queued Analysis Run end to end."""
+
+    def run(self, analysis_run: AnalysisRun, session: Session) -> None:
+        """Process the given queued run, driving it to a terminal status."""
+        ...
 
 
 def _parse_run_id(message: dict[str, Any]) -> uuid.UUID | None:
@@ -35,16 +44,20 @@ def _parse_run_id(message: dict[str, Any]) -> uuid.UUID | None:
         return None
 
 
-def handle_analysis_run_message(message: dict[str, Any], session: Session) -> None:
-    """Transition an Analysis Run from Queued → Scraping → Scoring.
+def handle_analysis_run_message(
+    message: dict[str, Any], session: Session, *, pipeline: RunPipeline
+) -> None:
+    """Load a queued Analysis Run and delegate it to the worker pipeline.
 
-    Designed to be called per queue message. Logs and returns without raising
-    on invalid or missing runs so the worker does not crash-loop on poison messages.
-    Each transition is committed separately so partial progress is visible.
+    Designed to be called per queue message. Logs and returns without raising on
+    invalid, missing, or non-queued runs so the worker does not crash-loop on
+    poison messages. Valid queued runs are handed to ``pipeline.run`` which owns
+    the scraping → scoring → terminal lifecycle and its commits.
 
     Args:
         message: Deserialized JSON payload from the job queue.
         session: Active database session for loading and updating the run.
+        pipeline: Pipeline that fetches, scores, and persists the run's results.
     """
     run_id = _parse_run_id(message)
     if run_id is None:
@@ -64,10 +77,4 @@ def handle_analysis_run_message(message: dict[str, Any], session: Session) -> No
         )
         return
 
-    run.status = AnalysisRunStatus.SCRAPING
-    session.commit()
-    logger.info("analysis run %s → scraping", run_id)
-
-    run.status = AnalysisRunStatus.SCORING
-    session.commit()
-    logger.info("analysis run %s → scoring", run_id)
+    pipeline.run(run, session)
