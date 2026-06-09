@@ -539,14 +539,14 @@ Repo scaffold + Docker Compose
 **Description:** Complete worker handler: fetch Adzuna listings (cap 50), score each, insert `job_match_result` rows, update run to Complete, write `finops_json`. Handle "no listings" → Failed with clear message.
 
 **Acceptance criteria:**
-- [ ] End-to-end Adzuna-only run completes locally
-- [ ] Results sorted by match_score in query default
-- [ ] Run status Complete with ≥1 scored listing
-- [ ] Zero listings → Failed status
+- [x] End-to-end Adzuna-only run completes locally
+- [x] Results sorted by match_score in query default
+- [x] Run status Complete with ≥1 scored listing
+- [x] Zero listings → Failed status
 
 **Verification:**
-- [ ] Integration test with fake Adzuna + fake LLM
-- [ ] GET `/runs/{id}/results` returns expected count
+- [x] Integration test with fake Adzuna + fake LLM
+- [x] GET `/runs/{id}/results` returns expected count
 
 **Dependencies:** Task 13, Task 14, Task 12
 
