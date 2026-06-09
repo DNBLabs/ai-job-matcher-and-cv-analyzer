@@ -1,8 +1,8 @@
-"""Integration tests for the Analysis Run worker pipeline (Task 15).
+"""Integration tests for the Analysis Run worker pipeline (Tasks 15 + 17).
 
-Exercises fetch → score → persist with a fake Job Source and a fake scoring LLM:
+Exercises fetch → score → persist with fake Job Sources and a fake scoring LLM:
 no live network or OpenAI calls. Asserts terminal status rules, result ordering,
-FinOps persistence, and stable external-id dedup.
+FinOps persistence, stable external-id dedup, and multi-source partial failure.
 """
 
 import hashlib
@@ -72,7 +72,7 @@ def _output(*, match_score: int = 82) -> ScoringLlmOutput:
 
 def _pipeline(job_source: FakeJobSource, llm: FakeScoringLlmClient, **kwargs) -> AnalysisRunPipeline:
     return AnalysisRunPipeline(
-        job_source=job_source,
+        job_sources=[("adzuna", job_source)],
         scoring_service=ScoringService(llm),
         **kwargs,
     )
@@ -211,3 +211,106 @@ def test_pipeline_derives_stable_external_id_and_dedupes(api_test_db_session: Se
     results = JobMatchResultRepository(api_test_db_session).list_for_run(run.id)
     assert len(results) == 1
     assert results[0].external_id == hashlib.sha256(duplicate_url.encode()).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Task 17 — multi-source fan-out tests
+# ---------------------------------------------------------------------------
+
+
+def _multi_pipeline(
+    sources: list[tuple[str, FakeJobSource]],
+    llm: FakeScoringLlmClient,
+    **kwargs,
+) -> AnalysisRunPipeline:
+    return AnalysisRunPipeline(
+        job_sources=sources,
+        scoring_service=ScoringService(llm),
+        **kwargs,
+    )
+
+
+def test_pipeline_fetches_from_both_sources(api_test_db_session: Session) -> None:
+    """With two sources registered, both are called and their listings merged."""
+    user = _create_user(api_test_db_session)
+    cv = _create_cv(api_test_db_session, user)
+    run = _create_queued_run(api_test_db_session, user, cv)
+    adzuna = FakeJobSource(listings=[make_listing(url="https://a.com/1", source="adzuna")])
+    indeed = FakeJobSource(listings=[make_listing(url="https://b.com/1", source="indeed")])
+    llm = FakeScoringLlmClient(behaviours=[_output(), _output()])
+
+    _multi_pipeline([("adzuna", adzuna), ("indeed", indeed)], llm).run(run, api_test_db_session)
+
+    assert adzuna.fetch_calls == [50]
+    assert indeed.fetch_calls == [50]
+    api_test_db_session.refresh(run)
+    assert run.status == AnalysisRunStatus.COMPLETE
+    results = JobMatchResultRepository(api_test_db_session).list_for_run(run.id)
+    assert len(results) == 2
+
+
+def test_pipeline_completes_when_one_source_fails(api_test_db_session: Session) -> None:
+    """If one source fails but the other returns listings, the run reaches COMPLETE."""
+    user = _create_user(api_test_db_session)
+    cv = _create_cv(api_test_db_session, user)
+    run = _create_queued_run(api_test_db_session, user, cv)
+    adzuna = FakeJobSource(listings=[make_listing(url="https://a.com/1", source="adzuna")])
+    indeed = FakeJobSource(error=JobSourceError("indeed rate-limited"))
+    llm = FakeScoringLlmClient(behaviours=[_output()])
+
+    _multi_pipeline([("adzuna", adzuna), ("indeed", indeed)], llm).run(run, api_test_db_session)
+
+    api_test_db_session.refresh(run)
+    assert run.status == AnalysisRunStatus.COMPLETE
+    results = JobMatchResultRepository(api_test_db_session).list_for_run(run.id)
+    assert len(results) == 1
+
+
+def test_pipeline_records_source_failure_metadata(api_test_db_session: Session) -> None:
+    """A failed source is recorded in source_failures_json on the run."""
+    user = _create_user(api_test_db_session)
+    cv = _create_cv(api_test_db_session, user)
+    run = _create_queued_run(api_test_db_session, user, cv)
+    adzuna = FakeJobSource(listings=[make_listing(url="https://a.com/1", source="adzuna")])
+    indeed = FakeJobSource(error=JobSourceError("indeed unavailable"))
+    llm = FakeScoringLlmClient(behaviours=[_output()])
+
+    _multi_pipeline([("adzuna", adzuna), ("indeed", indeed)], llm).run(run, api_test_db_session)
+
+    api_test_db_session.refresh(run)
+    failures = run.source_failures_json
+    assert failures is not None
+    assert len(failures["failures"]) == 1
+    assert failures["failures"][0]["source"] == "indeed"
+
+
+def test_pipeline_fails_when_all_sources_fail(api_test_db_session: Session) -> None:
+    """When every source fails after retries, the run resolves to FAILED."""
+    user = _create_user(api_test_db_session)
+    cv = _create_cv(api_test_db_session, user)
+    run = _create_queued_run(api_test_db_session, user, cv)
+    adzuna = FakeJobSource(error=JobSourceError("adzuna down"))
+    indeed = FakeJobSource(error=JobSourceError("indeed down"))
+    llm = FakeScoringLlmClient(behaviours=[_output()])
+
+    _multi_pipeline([("adzuna", adzuna), ("indeed", indeed)], llm).run(run, api_test_db_session)
+
+    api_test_db_session.refresh(run)
+    assert run.status == AnalysisRunStatus.FAILED
+
+
+def test_pipeline_dedupes_same_url_across_sources(api_test_db_session: Session) -> None:
+    """A URL returned by both sources is only scored and persisted once."""
+    user = _create_user(api_test_db_session)
+    cv = _create_cv(api_test_db_session, user)
+    run = _create_queued_run(api_test_db_session, user, cv)
+    shared_url = "https://shared.com/job/1"
+    adzuna = FakeJobSource(listings=[make_listing(url=shared_url, source="adzuna")])
+    indeed = FakeJobSource(listings=[make_listing(url=shared_url, source="indeed")])
+    llm = FakeScoringLlmClient(behaviours=[_output()])
+
+    _multi_pipeline([("adzuna", adzuna), ("indeed", indeed)], llm).run(run, api_test_db_session)
+
+    results = JobMatchResultRepository(api_test_db_session).list_for_run(run.id)
+    assert len(results) == 1
+    assert llm.call_count == 1

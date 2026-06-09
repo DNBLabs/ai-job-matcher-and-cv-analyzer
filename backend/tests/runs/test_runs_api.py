@@ -297,12 +297,17 @@ async def test_get_run_results_returns_pipeline_scored_count(
         talking_points=["Highlight API work"],
     )
     pipeline = AnalysisRunPipeline(
-        job_source=FakeJobSource(
-            listings=[
-                make_listing(url="https://example.com/jobs/1"),
-                make_listing(url="https://example.com/jobs/2"),
-            ]
-        ),
+        job_sources=[
+            (
+                "adzuna",
+                FakeJobSource(
+                    listings=[
+                        make_listing(url="https://example.com/jobs/1"),
+                        make_listing(url="https://example.com/jobs/2"),
+                    ]
+                ),
+            )
+        ],
         scoring_service=ScoringService(FakeScoringLlmClient(behaviours=[output])),
     )
     pipeline.run(run, db_session)

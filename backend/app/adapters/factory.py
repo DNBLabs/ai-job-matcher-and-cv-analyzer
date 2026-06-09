@@ -10,6 +10,7 @@ from app.adapters.openai_client import OpenAiLlmClient
 from app.config import Settings
 from app.job_sources.adzuna import AdzunaJobSource
 from app.job_sources.base import JobSource
+from app.job_sources.indeed import IndeedJobSource
 from app.ports.blob_store import BlobStore
 from app.ports.job_queue import JobQueue
 from app.ports.llm_client import LlmClient, ScoringLlmClient
@@ -154,3 +155,12 @@ def create_adzuna_job_source(secret_provider: SecretProvider) -> JobSource:
         app_id=secret_provider.get("ADZUNA_APP_ID"),
         app_key=secret_provider.get("ADZUNA_APP_KEY"),
     )
+
+
+def create_indeed_job_source() -> JobSource:
+    """Return the Indeed UK JobSource adapter (no credentials required).
+
+    Returns:
+        JobSource: Indeed-backed scraping adapter for UK listings.
+    """
+    return IndeedJobSource()
