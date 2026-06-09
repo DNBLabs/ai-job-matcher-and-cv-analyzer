@@ -5,10 +5,17 @@ import signal
 import sys
 from typing import Any
 
-from app.adapters.factory import create_job_queue
+from app.adapters.factory import (
+    create_adzuna_job_source,
+    create_job_queue,
+    create_scoring_llm_client,
+    create_secret_provider,
+)
 from app.config import get_settings
 from app.db.session import get_session_factory
+from app.services.scoring_service import ScoringService
 from worker.handlers.analysis_run import handle_analysis_run_message
+from worker.pipeline import AnalysisRunPipeline
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +59,12 @@ def main() -> None:
     session_factory = get_session_factory(settings)
     job_queue = create_job_queue(settings)
 
+    secret_provider = create_secret_provider(settings)
+    pipeline = AnalysisRunPipeline(
+        job_source=create_adzuna_job_source(secret_provider),
+        scoring_service=ScoringService(create_scoring_llm_client(settings, secret_provider)),
+    )
+
     def process_message(message: dict[str, Any]) -> None:
         """Open a session-per-message, process, and always close on exit.
 
@@ -60,7 +73,7 @@ def main() -> None:
         """
         session = session_factory()
         try:
-            handle_analysis_run_message(message, session)
+            handle_analysis_run_message(message, session, pipeline=pipeline)
         except Exception:
             # Catch-all ensures pika acks the message rather than requeuing
             # indefinitely. The error is logged with traceback for investigation.

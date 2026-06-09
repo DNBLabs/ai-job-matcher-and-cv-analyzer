@@ -8,9 +8,11 @@ from app.adapters.local.memory_blob_store import MemoryBlobStore
 from app.adapters.local.rabbitmq_job_queue import RabbitMQJobQueue
 from app.adapters.openai_client import OpenAiLlmClient
 from app.config import Settings
+from app.job_sources.adzuna import AdzunaJobSource
+from app.job_sources.base import JobSource
 from app.ports.blob_store import BlobStore
 from app.ports.job_queue import JobQueue
-from app.ports.llm_client import LlmClient
+from app.ports.llm_client import LlmClient, ScoringLlmClient
 from app.ports.notification import NotificationPort
 from app.ports.secret_provider import SecretNotFoundError, SecretProvider
 
@@ -109,4 +111,46 @@ def create_llm_client(settings: Settings, secret_provider: SecretProvider) -> Ll
         api_key=api_key,
         title_model=settings.openai_title_model,
         scoring_model=settings.openai_scoring_model,
+    )
+
+
+def create_scoring_llm_client(
+    settings: Settings, secret_provider: SecretProvider
+) -> ScoringLlmClient:
+    """Return a ScoringLlmClient wired to OpenAI for per-listing Analysis Run scoring.
+
+    Args:
+        settings: Application settings describing the scoring model.
+        secret_provider: SecretProvider port for resolving ``OPENAI_API_KEY``.
+
+    Returns:
+        ScoringLlmClient: OpenAI-backed structured scoring client.
+
+    Raises:
+        SecretNotFoundError: When ``OPENAI_API_KEY`` is missing from the provider.
+    """
+    api_key = secret_provider.get("OPENAI_API_KEY")
+    return OpenAiLlmClient(
+        api_key=api_key,
+        title_model=settings.openai_title_model,
+        scoring_model=settings.openai_scoring_model,
+    )
+
+
+def create_adzuna_job_source(secret_provider: SecretProvider) -> JobSource:
+    """Return the Adzuna JobSource adapter wired with credentials from secrets.
+
+    Args:
+        secret_provider: SecretProvider port resolving ``ADZUNA_APP_ID`` and
+            ``ADZUNA_APP_KEY`` (Worker Managed Identity scope in production).
+
+    Returns:
+        JobSource: Adzuna-backed adapter for UK listings.
+
+    Raises:
+        SecretNotFoundError: When an Adzuna credential is missing from the provider.
+    """
+    return AdzunaJobSource(
+        app_id=secret_provider.get("ADZUNA_APP_ID"),
+        app_key=secret_provider.get("ADZUNA_APP_KEY"),
     )
