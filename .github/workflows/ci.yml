@@ -86,6 +86,12 @@ jobs:
       - name: Analysis orchestrator tests (Task 10)
         run: pytest tests/domain/test_job_search.py tests/services/test_analysis_orchestrator.py -v
 
+      - name: Run API endpoint tests (Task 11)
+        run: pytest tests/runs/test_runs_api.py -v
+
+      - name: Worker consumer and handler tests (Task 12)
+        run: pytest tests/test_worker.py -v
+
       - name: Apply database migrations (Task 2)
         # Source: https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
         run: alembic upgrade head

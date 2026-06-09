@@ -35,6 +35,18 @@ class AnalysisRunRepository:
         )
         return self._session.scalar(statement)
 
+    def get_by_id(self, run_id: uuid.UUID) -> AnalysisRun | None:
+        """Return a run by primary key without user-scoping, for internal worker use.
+
+        Args:
+            run_id: Analysis Run primary key.
+
+        Returns:
+            AnalysisRun | None: Matching run or None when not found.
+        """
+        statement = select(AnalysisRun).where(AnalysisRun.id == run_id)
+        return self._session.scalar(statement)
+
     def list_for_user(self, user_id: uuid.UUID) -> list[AnalysisRun]:
         """Return all Analysis Runs owned by the user, newest first.
 
