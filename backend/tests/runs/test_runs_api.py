@@ -129,7 +129,7 @@ async def test_post_runs_quota_exhausted_returns_429(
     """POST /runs returns 429 when the rolling 24h quota is exhausted."""
     user = create_test_user(db_session)
     cv = _create_cv(db_session, user)
-    now = datetime(2026, 6, 9, 12, 0, tzinfo=UTC)
+    now = datetime.now(UTC)
     for hours_ago in (2, 4, 6):
         _seed_run(
             db_session,
@@ -157,7 +157,7 @@ async def test_get_runs_quota_returns_remaining_and_concurrent_blocked(
     """GET /runs/quota exposes remaining quota and concurrency state."""
     user = create_test_user(db_session)
     cv = _create_cv(db_session, user)
-    now = datetime(2026, 6, 9, 12, 0, tzinfo=UTC)
+    now = datetime.now(UTC)
     _seed_run(
         db_session,
         user=user,
@@ -318,6 +318,115 @@ async def test_get_run_results_returns_pipeline_scored_count(
     results = response.json()
     assert len(results) == 2
     assert results[0]["match_score"] == 88
+
+
+@pytest.mark.asyncio
+async def test_get_run_includes_source_failures_on_partial_run(
+    runs_client: AsyncClient,
+    db_session: Session,
+) -> None:
+    """GET /runs/{id} returns source_failures when one source failed."""
+    from app.job_sources.base import JobSourceError
+    from app.services.scoring_service import ScoringService
+    from tests.fakes.fake_job_source import FakeJobSource, make_listing
+    from tests.fakes.fake_scoring_llm_client import FakeScoringLlmClient
+    from worker.pipeline import AnalysisRunPipeline
+
+    user = create_test_user(db_session)
+    cv = _create_cv(db_session, user)
+    run = _seed_run(db_session, user=user, cv=cv, status=AnalysisRunStatus.QUEUED)
+    _authenticate_client(runs_client, db_session, user)
+
+    from app.domain.scoring_schema import ScoringLlmOutput
+
+    pipeline = AnalysisRunPipeline(
+        job_sources=[
+            ("adzuna", FakeJobSource(listings=[make_listing(url="https://a.com/1")])),
+            ("indeed", FakeJobSource(error=JobSourceError("rate-limited"))),
+        ],
+        scoring_service=ScoringService(
+            FakeScoringLlmClient(
+                behaviours=[
+                    ScoringLlmOutput(
+                        match_score=75,
+                        interview_likelihood=InterviewLikelihood.MEDIUM,
+                        matched_skills=["Python"],
+                        skill_gaps=[],
+                        red_flags=[],
+                        talking_points=[],
+                    )
+                ]
+            )
+        ),
+    )
+    pipeline.run(run, db_session)
+
+    response = await runs_client.get(f"/runs/{run.id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "complete"
+    assert body["source_failures"] is not None
+    failures = body["source_failures"]["failures"]
+    assert len(failures) == 1
+    assert failures[0]["source"] == "indeed"
+
+
+@pytest.mark.asyncio
+async def test_get_run_includes_failure_message(
+    runs_client: AsyncClient,
+    db_session: Session,
+) -> None:
+    """GET /runs/{id} returns a failure_message on a FAILED run distinguishing cause."""
+    from app.domain.divergence import InterviewLikelihood
+    from app.domain.scoring_schema import ScoringLlmOutput
+    from app.job_sources.base import JobSourceError
+    from app.services.scoring_service import ScoringService
+    from tests.fakes.fake_job_source import FakeJobSource
+    from tests.fakes.fake_scoring_llm_client import FakeScoringLlmClient
+    from worker.pipeline import AnalysisRunPipeline
+
+    _dummy_output = ScoringLlmOutput(
+        match_score=50,
+        interview_likelihood=InterviewLikelihood.LOW,
+        matched_skills=[],
+        skill_gaps=[],
+        red_flags=[],
+        talking_points=[],
+    )
+
+    user = create_test_user(db_session)
+    cv = _create_cv(db_session, user)
+
+    # Case 1: scrape error → "Scraping failed"
+    run_scrape_fail = _seed_run(db_session, user=user, cv=cv, status=AnalysisRunStatus.QUEUED)
+    AnalysisRunPipeline(
+        job_sources=[
+            ("adzuna", FakeJobSource(error=JobSourceError("down"))),
+            ("indeed", FakeJobSource(error=JobSourceError("down"))),
+        ],
+        scoring_service=ScoringService(FakeScoringLlmClient(behaviours=[_dummy_output])),
+    ).run(run_scrape_fail, db_session)
+
+    # Case 2: empty search → "No jobs found"
+    run_empty = _seed_run(db_session, user=user, cv=cv, status=AnalysisRunStatus.QUEUED)
+    AnalysisRunPipeline(
+        job_sources=[
+            ("adzuna", FakeJobSource(listings=[])),
+            ("indeed", FakeJobSource(listings=[])),
+        ],
+        scoring_service=ScoringService(FakeScoringLlmClient(behaviours=[_dummy_output])),
+    ).run(run_empty, db_session)
+
+    _authenticate_client(runs_client, db_session, user)
+
+    resp_scrape = await runs_client.get(f"/runs/{run_scrape_fail.id}")
+    resp_empty = await runs_client.get(f"/runs/{run_empty.id}")
+
+    assert resp_scrape.status_code == 200
+    assert resp_empty.status_code == 200
+    assert resp_scrape.json()["failure_message"] == "Scraping failed — try again later"
+    assert resp_empty.json()["failure_message"] == "No jobs found for this search"
 
 
 @pytest.mark.asyncio

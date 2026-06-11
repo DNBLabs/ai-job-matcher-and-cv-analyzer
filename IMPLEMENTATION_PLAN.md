@@ -117,7 +117,7 @@ Repo scaffold + Docker Compose
 ### Phase 5: Indeed Scraper & Partial Success
 
 - [x] Task 16: Indeed UK scraper adapter (fixture-tested parser) — Added IndeedJobSource (BeautifulSoup html.parser), 3-card HTML fixture, 20 fixture-based tests; beautifulsoup4 dep added (#18)
-- [ ] Task 17: Multi-source worker pipeline with retry and partial failure
+- [x] Task 17: Multi-source worker pipeline with retry and partial failure
 - [ ] Task 18: Source-failure metadata and run outcome rules
 
 #### Checkpoint: Hybrid Sourcing
@@ -586,13 +586,13 @@ Repo scaffold + Docker Compose
 **Description:** Extend worker to fetch Indeed + Adzuna in parallel or sequence, merge listings (dedupe by URL if needed), cap 50/source. Per-source retry 2×. Continue if one source fails.
 
 **Acceptance criteria:**
-- [ ] Both sources invoked per run
-- [ ] Independent retry per source
-- [ ] Listings from successful source scored even if other fails
+- [x] Both sources invoked per run
+- [x] Independent retry per source
+- [x] Listings from successful source scored even if other fails
 
 **Verification:**
-- [ ] Integration test: Adzuna succeeds, Indeed fails → Complete with banner metadata
-- [ ] Both fail after retries → Failed
+- [x] Integration test: Adzuna succeeds, Indeed fails → Complete with banner metadata
+- [x] Both fail after retries → Failed
 
 **Dependencies:** Task 15, Task 16
 
