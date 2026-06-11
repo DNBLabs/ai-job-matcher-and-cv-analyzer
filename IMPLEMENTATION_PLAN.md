@@ -131,12 +131,12 @@ Repo scaffold + Docker Compose
 
 - [x] Task 19: Transactional email service (magic link + run complete) — NotificationPort + run-complete email; pure templates, Resend prod adapter (key via SecretProvider), log adapter default; worker emails owner a sign-in-gated deep link on COMPLETE (#21)
 - [x] Task 20: React SPA scaffold, auth pages, and API client — Added `GET /auth/me` session probe, fetch API client (`credentials:"include"`), `AuthProvider`/`useAuth`, `ProtectedRoute` redirect, Login page (Google anchor + magic-link form), react-router routes, and Vitest jest-dom setup (#23)
-- [ ] Task 21: Dashboard, CV wizard, run status polling, and cold-start UX
+- [x] Task 21: Dashboard, CV wizard, run status polling, and cold-start UX — Extended API client (CVs, titles, runs, quota, `/health`); `useRunPolling` (terminal-aware status polling) + `useApiWarmup` (cold-start detection); Dashboard (CV list + delete, run history, warming banner), NewRun wizard (`CvUploadForm` → `TitleSuggestions` select/edit → `JobSearchForm` with quota + UK-city/Remote picker), RunDetail polling page; `/runs/new` + `/runs/:runId` routes; 59 Vitest tests green
 
 #### Checkpoint: End-to-End UX (Local)
 - [ ] Job Seeker completes full flow in browser: sign-in → upload → search → results
 - [ ] Dashboard polls run status; completion email sent (dev sink or provider sandbox)
-- [ ] Cold-start loading state present for scale-to-zero messaging
+- [x] Cold-start loading state present for scale-to-zero messaging — `useApiWarmup` probes `/health`; Dashboard shows a "Waking the service up…" banner while warming
 
 ---
 
@@ -660,7 +660,7 @@ Repo scaffold + Docker Compose
 
 **Verification:**
 - [x] `npm run build` succeeds — `tsc -b && vite build` green
-- [ ] Manual browser sign-in flow against local API
+- [x] Manual browser sign-in flow against local API
 
 **Dependencies:** Task 6
 
@@ -676,14 +676,14 @@ Repo scaffold + Docker Compose
 **Description:** Pages: Dashboard (CV list + run history), CV upload with title suggestion step, Job Search form (UK location picker + Remote), run detail with polling (2–5s interval) for status transitions. Cold-start warming banner when API slow to respond.
 
 **Acceptance criteria:**
-- [ ] CV upload → title suggestions displayed → select/edit title → Job Search form
-- [ ] Start run → navigate to run detail → poll until Complete/Failed
-- [ ] Loading/warming UI shown when health check exceeds threshold
-- [ ] Quota displayed before starting run
+- [x] CV upload → title suggestions displayed → select/edit title → Job Search form — `NewRun` wizard: `CvUploadForm` → `TitleSuggestions` (use suggestion or edit own role) → `JobSearchForm`
+- [x] Start run → navigate to run detail → poll until Complete/Failed — `JobSearchForm.createRun` → `navigate(/runs/{id})` → `RunDetail` drives `useRunPolling` until terminal
+- [x] Loading/warming UI shown when health check exceeds threshold — `useApiWarmup` (`thresholdMs`/retry on cold `/health`); Dashboard warming banner
+- [x] Quota displayed before starting run — `JobSearchForm` loads `GET /runs/quota`, renders "N runs left today" and blocks on concurrent run
 
 **Verification:**
 - [ ] Manual E2E against local Compose
-- [ ] Component test for polling hook status updates
+- [x] Component test for polling hook status updates — `src/hooks/useRunPolling.test.ts` (polls through scraping→complete, stops on terminal, surfaces transient errors)
 
 **Dependencies:** Task 9, Task 11, Task 20
 

@@ -35,6 +35,9 @@ describe("App routing", () => {
       email: "alex@example.com",
       is_admin: false,
     });
+    vi.mocked(client.pingHealth).mockResolvedValue(true);
+    vi.mocked(client.listCvs).mockResolvedValue([]);
+    vi.mocked(client.listRuns).mockResolvedValue([]);
 
     renderAppAt("/dashboard");
 
