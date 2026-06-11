@@ -811,16 +811,18 @@ Repo scaffold + Docker Compose
 
 ## Task 27: Azure adapters (Blob, Service Bus, Key Vault) and MI wiring
 
-**Description:** Production adapters for three ports using Azure SDK. Startup wiring from env/identity. Separate Managed Identities: API (blob RW cvs/, SB send, KV OAuth+email), Worker (blob read cvs/, SB receive, KV OpenAI+Adzuna). Non-root containers.
+**Description:** Production adapters for three ports using Azure SDK. Startup wiring from env/identity. Separate Managed Identities: API (blob RW cvs/, SB send, KV OAuth+email), Worker (blob read cvs/, SB receive, KV OpenAI+Adzuna). Non-root containers. Also includes the **`GraphApiNotificationPort`** transactional-email adapter (M365 shared mailbox `sendMail`, MI-authenticated; decision 2026-06-11, replaces Resend).
 
 **Acceptance criteria:**
 - [ ] Adapters pass same contract tests as local (with Azure emulator or mocked SDK)
 - [ ] MI role assignments match THREAT_MODEL least privilege
 - [ ] No secrets in image or Terraform state plaintext
+- [ ] `GraphApiNotificationPort` sends via shared mailbox using MI; `Mail.Send` app permission constrained to that one mailbox by an Exchange Online Application Access Policy
 
 **Verification:**
-- [ ] Contract tests with mocked Azure clients
+- [ ] Contract tests with mocked Azure clients (incl. mocked Graph `sendMail`)
 - [ ] Deployed smoke: blob put/get via API MI
+- [ ] Deployed smoke: magic-link email lands in a real inbox from the shared mailbox
 
 **Dependencies:** Task 1, Task 26
 
@@ -931,7 +933,7 @@ Repo scaffold + Docker Compose
 
 ## Open Questions
 
-- [ ] **Transactional email delivery (prod)** — Provider chosen: **Resend** (Task 19 adapter shipped). Before deploy, real magic-link/run-complete email needs: (1) `RESEND_API_KEY` wired via Key Vault → SecretProvider (Tasks 26–27), (2) `EMAIL_FROM` on a **domain verified in Resend with SPF/DKIM DNS records** — an unverified sender is rejected, and (3) a post-deploy real-inbox deliverability check (magic links to a cold domain commonly land in spam until reputation warms). Locally the `log` adapter sends nothing by design — sign-in uses a minted verify link.
+- [x] **Transactional email delivery (prod)** — **Resolved 2026-06-11: Microsoft 365 shared mailbox via Graph API `sendMail`, replacing Resend.** New `GraphApiNotificationPort` adapter behind the existing `NotificationPort` (Task 19 abstraction); Resend adapter dropped. Auth via Container App **Managed Identity** (no stored key). Pre-deploy work, folded into **Task 27**: (1) app/MI granted `Mail.Send` *application* permission, (2) **Application Access Policy** scoping that permission to only the shared mailbox — unconstrained `Mail.Send` can send as any tenant mailbox, (3) `EMAIL_FROM` = shared mailbox address, (4) confirm app-only `sendMail` to the shared mailbox needs no per-mailbox licence, (5) post-deploy real-inbox deliverability check. Locally the `log` adapter sends nothing by design — sign-in uses a minted verify link.
 - [ ] **Indeed scraping ethics/legal** — Confirm operator accepts scrape + Adzuna fallback for portfolio demo only
 - [ ] **Google OAuth prod domains** — Exact callback URLs for ACA ingress (known after Task 26)
 - [ ] **Admin operator email** — Confirm seed email for `is_admin` + `is_unlimited` bootstrap
