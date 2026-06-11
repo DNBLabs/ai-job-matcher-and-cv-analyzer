@@ -10,6 +10,8 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
+import { NewRun } from "./pages/NewRun";
+import { RunDetail } from "./pages/RunDetail";
 
 function App() {
   return (
@@ -22,6 +24,22 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/runs/new"
+          element={
+            <ProtectedRoute>
+              <NewRun />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/runs/:runId"
+          element={
+            <ProtectedRoute>
+              <RunDetail />
             </ProtectedRoute>
           }
         />
