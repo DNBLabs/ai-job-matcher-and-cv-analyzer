@@ -118,12 +118,12 @@ Repo scaffold + Docker Compose
 
 - [x] Task 16: Indeed UK scraper adapter (fixture-tested parser) — Added IndeedJobSource (BeautifulSoup html.parser), 3-card HTML fixture, 20 fixture-based tests; beautifulsoup4 dep added (#18)
 - [x] Task 17: Multi-source worker pipeline with retry and partial failure
-- [ ] Task 18: Source-failure metadata and run outcome rules
+- [x] Task 18: Source-failure metadata and run outcome rules
 
 #### Checkpoint: Hybrid Sourcing
-- [ ] Run with both sources completes; partial failure shows banner metadata
-- [ ] Zero listings after retries → `Failed` with distinct error messages
-- [ ] Indeed parser unit tests use fixtures only (no live network in CI)
+- [x] Run with both sources completes; partial failure shows banner metadata
+- [x] Zero listings after retries → `Failed` with distinct error messages
+- [x] Indeed parser unit tests use fixtures only (no live network in CI)
 
 ---
 
@@ -608,13 +608,13 @@ Repo scaffold + Docker Compose
 **Description:** Persist `source_failures_json` on run record. Implement partial-success rules from PRD: ≥1 scored → Complete; 0 listings → Failed with message distinguishing empty search vs scrape failure.
 
 **Acceptance criteria:**
-- [ ] `source_failures_json` lists failed sources with reason codes
-- [ ] API exposes failure metadata for UI banner
-- [ ] Distinct user-facing messages for no jobs vs scrape failure
+- [x] `source_failures_json` lists failed sources with reason codes
+- [x] API exposes failure metadata for UI banner
+- [x] Distinct user-facing messages for no jobs vs scrape failure
 
 **Verification:**
-- [ ] Domain unit tests for outcome matrix
-- [ ] API test: partial run includes `source_failures` field
+- [x] Domain unit tests for outcome matrix
+- [x] API test: partial run includes `source_failures` field
 
 **Dependencies:** Task 17
 
