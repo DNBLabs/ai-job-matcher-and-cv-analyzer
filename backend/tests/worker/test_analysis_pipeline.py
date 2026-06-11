@@ -19,6 +19,7 @@ from app.domain.scoring_schema import ScoringLlmOutput
 from app.job_sources.base import JobSourceError
 from app.services.scoring_service import ScoringService
 from tests.fakes.fake_job_source import FakeJobSource, make_listing
+from tests.fakes.fake_notification_port import FakeNotificationPort
 from tests.fakes.fake_scoring_llm_client import FakeScoringLlmClient
 from worker.pipeline import AnalysisRunPipeline
 
@@ -297,6 +298,75 @@ def test_pipeline_fails_when_all_sources_fail(api_test_db_session: Session) -> N
 
     api_test_db_session.refresh(run)
     assert run.status == AnalysisRunStatus.FAILED
+
+
+def test_pipeline_sends_completion_email_to_owner_on_complete(
+    api_test_db_session: Session,
+) -> None:
+    """A COMPLETE run emails the owner a deep link to its results page."""
+    user = _create_user(api_test_db_session)
+    cv = _create_cv(api_test_db_session, user)
+    run = _create_queued_run(api_test_db_session, user, cv)
+    source = FakeJobSource(listings=[make_listing()])
+    sink = FakeNotificationPort()
+    pipeline = _pipeline(
+        source,
+        FakeScoringLlmClient(behaviours=[_output()]),
+        notification_port=sink,
+        frontend_base_url="https://app.test",
+    )
+
+    pipeline.run(run, api_test_db_session)
+
+    api_test_db_session.refresh(run)
+    assert run.status == AnalysisRunStatus.COMPLETE
+    assert len(sink.run_complete_emails) == 1
+    message = sink.run_complete_emails[0]
+    assert message["to_email"] == user.email
+    assert message["results_url"] == f"https://app.test/runs/{run.id}"
+
+
+def test_pipeline_sends_no_completion_email_on_failed(api_test_db_session: Session) -> None:
+    """A FAILED run (no listings) sends no completion email."""
+    user = _create_user(api_test_db_session)
+    cv = _create_cv(api_test_db_session, user)
+    run = _create_queued_run(api_test_db_session, user, cv)
+    sink = FakeNotificationPort()
+    pipeline = _pipeline(
+        FakeJobSource(listings=[]),
+        FakeScoringLlmClient(behaviours=[_output()]),
+        notification_port=sink,
+        frontend_base_url="https://app.test",
+    )
+
+    pipeline.run(run, api_test_db_session)
+
+    api_test_db_session.refresh(run)
+    assert run.status == AnalysisRunStatus.FAILED
+    assert sink.run_complete_emails == []
+
+
+def test_pipeline_email_failure_does_not_change_terminal_status(
+    api_test_db_session: Session,
+) -> None:
+    """A notification provider outage never demotes a COMPLETE run or loses results."""
+    user = _create_user(api_test_db_session)
+    cv = _create_cv(api_test_db_session, user)
+    run = _create_queued_run(api_test_db_session, user, cv)
+    source = FakeJobSource(listings=[make_listing()])
+    sink = FakeNotificationPort(raise_on_send=True)
+    pipeline = _pipeline(
+        source,
+        FakeScoringLlmClient(behaviours=[_output()]),
+        notification_port=sink,
+        frontend_base_url="https://app.test",
+    )
+
+    pipeline.run(run, api_test_db_session)
+
+    api_test_db_session.refresh(run)
+    assert run.status == AnalysisRunStatus.COMPLETE
+    assert len(JobMatchResultRepository(api_test_db_session).list_for_run(run.id)) == 1
 
 
 def test_pipeline_dedupes_same_url_across_sources(api_test_db_session: Session) -> None:

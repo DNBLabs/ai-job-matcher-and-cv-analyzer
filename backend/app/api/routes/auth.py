@@ -56,18 +56,6 @@ class MagicLinkRequest(BaseModel):
     email: str = Field(..., min_length=1, max_length=320)
 
 
-def get_notification_port(settings: Settings = Depends(get_settings_dependency)) -> NotificationPort:
-    """Return the configured NotificationPort for transactional email delivery.
-
-    Args:
-        settings: Runtime application settings.
-
-    Returns:
-        NotificationPort: Backend used to send magic-link emails.
-    """
-    return create_notification_port(settings)
-
-
 def get_secret_provider(settings: Settings = Depends(get_settings_dependency)) -> SecretProvider:
     """Return the configured SecretProvider for OAuth client credentials.
 
@@ -78,6 +66,22 @@ def get_secret_provider(settings: Settings = Depends(get_settings_dependency)) -
         SecretProvider: Backend used to resolve OAuth secrets at request time.
     """
     return create_secret_provider(settings)
+
+
+def get_notification_port(
+    settings: Settings = Depends(get_settings_dependency),
+    secret_provider: SecretProvider = Depends(get_secret_provider),
+) -> NotificationPort:
+    """Return the configured NotificationPort for transactional email delivery.
+
+    Args:
+        settings: Runtime application settings.
+        secret_provider: Provider resolving the email API key for production.
+
+    Returns:
+        NotificationPort: Backend used to send magic-link emails.
+    """
+    return create_notification_port(settings, secret_provider)
 
 
 def _resolve_google_oauth_client_id(secret_provider: SecretProvider) -> str:

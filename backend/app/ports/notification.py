@@ -17,3 +17,16 @@ class NotificationPort(Protocol):
             Exception: When the configured provider cannot send the message.
         """
         ...
+
+    def send_run_complete_email(self, *, to_email: str, results_url: str) -> None:
+        """Deliver the run-completion notification to the run owner.
+
+        Args:
+            to_email: Run owner's email address.
+            results_url: Absolute deep link to the run results page. Carries no
+                share token; viewing requires the owner to be signed in.
+
+        Raises:
+            Exception: When the configured provider cannot send the message.
+        """
+        ...

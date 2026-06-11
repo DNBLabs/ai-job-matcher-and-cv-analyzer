@@ -71,6 +71,18 @@ class Settings(BaseSettings):
         default="http://localhost:8000",
         description="Public API origin used to build magic-link verification URLs.",
     )
+    frontend_base_url: str = Field(
+        default="http://localhost:5173",
+        description="Public SPA origin used to build run-results deep links in emails.",
+    )
+    notification_backend: str = Field(
+        default="log",
+        description="NotificationPort adapter: log (local dev) or resend (production).",
+    )
+    email_from: str = Field(
+        default="AI Job Matcher <onboarding@resend.dev>",
+        description="Verified sender for transactional email (Resend backend).",
+    )
     openai_title_model: str = Field(
         default="gpt-4o-mini",
         description="OpenAI chat model used for sync Suggested Job Titles.",
