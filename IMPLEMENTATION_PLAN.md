@@ -129,7 +129,7 @@ Repo scaffold + Docker Compose
 
 ### Phase 6: Notifications & Frontend Core
 
-- [ ] Task 19: Transactional email service (magic link + run complete)
+- [x] Task 19: Transactional email service (magic link + run complete) — NotificationPort + run-complete email; pure templates, Resend prod adapter (key via SecretProvider), log adapter default; worker emails owner a sign-in-gated deep link on COMPLETE (#21)
 - [ ] Task 20: React SPA scaffold, auth pages, and API client
 - [ ] Task 21: Dashboard, CV wizard, run status polling, and cold-start UX
 
@@ -630,14 +630,14 @@ Repo scaffold + Docker Compose
 **Description:** Email port with local log adapter and production provider adapter (e.g. Resend/SendGrid). Templates for magic link and run completion with deep link to `/runs/{id}`. Wire into auth and worker completion hook.
 
 **Acceptance criteria:**
-- [ ] Magic link email sent on request (local: logged URL)
-- [ ] Completion email sent when run reaches Complete
-- [ ] Deep link requires sign-in as owner (no public share token)
-- [ ] Secrets loaded via SecretProvider
+- [x] Magic link email sent on request (local: logged URL)
+- [x] Completion email sent when run reaches Complete
+- [x] Deep link requires sign-in as owner (no public share token)
+- [x] Secrets loaded via SecretProvider (`RESEND_API_KEY`)
 
 **Verification:**
-- [ ] Integration test captures email payload in fake sink
-- [ ] Template snapshot test for subject/body structure
+- [x] Integration test captures email payload in fake sink (`tests/worker/test_analysis_pipeline.py`)
+- [x] Template snapshot test for subject/body structure (`tests/notifications/test_email_templates.py`)
 
 **Dependencies:** Task 5, Task 15
 
