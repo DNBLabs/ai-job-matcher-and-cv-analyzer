@@ -173,6 +173,8 @@ How a Job Seeker learns an Analysis Run has finished:
 
 Both channels are required for MVP.
 
+**Email delivery (prod requirement):** Transactional email (magic link + run-complete) is delivered via **Resend**. Real inbox delivery requires `EMAIL_FROM` set to a sender on a **domain verified in Resend with SPF/DKIM DNS records** — an unverified sender is rejected — plus `RESEND_API_KEY` loaded from Key Vault via the SecretProvider. Plan a post-deploy real-inbox deliverability check, as magic links to a freshly verified domain commonly land in spam until reputation warms. Local dev uses the `log` adapter (no actual send); sign-in is completed with a minted verify link.
+
 ### Job Search
 The set of criteria a Job Seeker defines to scope which listings workers scrape: role/keywords, location (or remote), and optional filters (experience level, employment type). One Analysis Run pairs one CV with one Job Search.
 
