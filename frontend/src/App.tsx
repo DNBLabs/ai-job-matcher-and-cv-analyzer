@@ -1,21 +1,33 @@
 /**
- * Root React component for the Job Seeker dashboard SPA.
+ * Root SPA component: wires the auth context and client-side routes.
+ *
+ * The router (BrowserRouter) is provided by `main.tsx` so tests can mount the
+ * route table inside a MemoryRouter.
  */
-
+import { Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
+import { AuthProvider } from "./auth/AuthProvider";
+import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { Dashboard } from "./pages/Dashboard";
+import { Login } from "./pages/Login";
 
 function App() {
   return (
-    <main className="app-shell">
-      <header>
-        <h1>AI Job Matcher &amp; CV Analyzer</h1>
-        <p>
-          Upload CVs, run UK job searches, and review Match Scores with Interview
-          Likelihood estimates.
-        </p>
-      </header>
-      <p className="status-note">Sign-in and dashboard flows arrive in Task 20.</p>
-    </main>
+    <AuthProvider>
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </AuthProvider>
   );
 }
 
