@@ -38,8 +38,8 @@ from app.auth.rate_limit import (
     magic_link_ip_bucket,
 )
 from app.auth.session import SessionService, is_valid_session_id
-from app.db.models import SessionRecord
-from app.api.deps import get_settings_dependency
+from app.db.models import SessionRecord, UserAccount
+from app.api.deps import get_current_user, get_settings_dependency
 from app.config import Settings
 from app.db.repositories.audit_log_repository import AuditLogRepository
 from app.db.session import get_db_session
@@ -54,6 +54,36 @@ class MagicLinkRequest(BaseModel):
     """Request body for issuing a passwordless sign-in link."""
 
     email: str = Field(..., min_length=1, max_length=320)
+
+
+class CurrentUserResponse(BaseModel):
+    """Identity payload returned to the SPA for the authenticated session."""
+
+    id: str
+    email: str
+    is_admin: bool
+
+
+@router.get("/me", response_model=CurrentUserResponse)
+async def read_current_user(
+    current_user: UserAccount = Depends(get_current_user),
+) -> CurrentUserResponse:
+    """Return the authenticated account identity for the SPA session probe.
+
+    The SPA calls this on load to decide between the dashboard and sign-in;
+    unauthenticated requests resolve to 401 via ``get_current_user``.
+
+    Args:
+        current_user: Authenticated User Account from the session cookie.
+
+    Returns:
+        CurrentUserResponse: Owner id, email, and admin flag for nav gating.
+    """
+    return CurrentUserResponse(
+        id=str(current_user.id),
+        email=current_user.email,
+        is_admin=current_user.is_admin,
+    )
 
 
 def get_secret_provider(settings: Settings = Depends(get_settings_dependency)) -> SecretProvider:
