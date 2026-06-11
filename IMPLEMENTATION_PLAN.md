@@ -130,7 +130,7 @@ Repo scaffold + Docker Compose
 ### Phase 6: Notifications & Frontend Core
 
 - [x] Task 19: Transactional email service (magic link + run complete) — NotificationPort + run-complete email; pure templates, Resend prod adapter (key via SecretProvider), log adapter default; worker emails owner a sign-in-gated deep link on COMPLETE (#21)
-- [ ] Task 20: React SPA scaffold, auth pages, and API client
+- [x] Task 20: React SPA scaffold, auth pages, and API client — Added `GET /auth/me` session probe, fetch API client (`credentials:"include"`), `AuthProvider`/`useAuth`, `ProtectedRoute` redirect, Login page (Google anchor + magic-link form), react-router routes, and Vitest jest-dom setup (#23)
 - [ ] Task 21: Dashboard, CV wizard, run status polling, and cold-start UX
 
 #### Checkpoint: End-to-End UX (Local)
@@ -653,13 +653,13 @@ Repo scaffold + Docker Compose
 **Description:** Vite + React + TypeScript SPA with routing, auth context, API client (credentials include for cookies), sign-in page (Google button + magic link form), and protected route wrapper. Serve built SPA from FastAPI static mount or separate dev proxy.
 
 **Acceptance criteria:**
-- [ ] Routes: `/login`, `/dashboard` (protected)
-- [ ] Google OAuth redirect works from browser
-- [ ] Magic link form submits and shows "check email" state
-- [ ] Unauthenticated users redirected to login
+- [x] Routes: `/login`, `/dashboard` (protected) — react-router routes in `App.tsx`; `ProtectedRoute` gates `/dashboard`
+- [x] Google OAuth redirect works from browser — full-page anchor to `${API}/auth/google/login` via `googleLoginUrl()`
+- [x] Magic link form submits and shows "check email" state — `Login.tsx` form with sent/rate-limit/error states
+- [x] Unauthenticated users redirected to login — `ProtectedRoute` `<Navigate to="/login">`; `AuthProvider` probes `GET /auth/me`
 
 **Verification:**
-- [ ] `npm run build` succeeds
+- [x] `npm run build` succeeds — `tsc -b && vite build` green
 - [ ] Manual browser sign-in flow against local API
 
 **Dependencies:** Task 6
