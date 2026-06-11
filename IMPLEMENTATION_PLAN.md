@@ -931,7 +931,7 @@ Repo scaffold + Docker Compose
 
 ## Open Questions
 
-- [ ] **Transactional email provider** — Resend, SendGrid, or Azure Communication Services? (Cost and SPF/DKIM setup)
+- [ ] **Transactional email delivery (prod)** — Provider chosen: **Resend** (Task 19 adapter shipped). Before deploy, real magic-link/run-complete email needs: (1) `RESEND_API_KEY` wired via Key Vault → SecretProvider (Tasks 26–27), (2) `EMAIL_FROM` on a **domain verified in Resend with SPF/DKIM DNS records** — an unverified sender is rejected, and (3) a post-deploy real-inbox deliverability check (magic links to a cold domain commonly land in spam until reputation warms). Locally the `log` adapter sends nothing by design — sign-in uses a minted verify link.
 - [ ] **Indeed scraping ethics/legal** — Confirm operator accepts scrape + Adzuna fallback for portfolio demo only
 - [ ] **Google OAuth prod domains** — Exact callback URLs for ACA ingress (known after Task 26)
 - [ ] **Admin operator email** — Confirm seed email for `is_admin` + `is_unlimited` bootstrap
