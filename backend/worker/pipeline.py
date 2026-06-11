@@ -20,6 +20,7 @@ from app.domain.analysis_run import AnalysisRunStatus, resolve_terminal_status
 from app.domain.job_search import JobSearch
 from app.domain.scoring_schema import ScoredListing
 from app.job_sources.base import JobSource, JobSourceError, NormalisedListing
+from app.ports.notification import NotificationPort
 from app.services.scoring_service import ScoringService
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,8 @@ class AnalysisRunPipeline:
         job_sources: list[tuple[str, JobSource]],
         scoring_service: ScoringService,
         max_listings: int = _MAX_LISTINGS_PER_SOURCE,
+        notification_port: NotificationPort | None = None,
+        frontend_base_url: str = "",
     ) -> None:
         """Bind the pipeline to named Job Sources, a scoring service, and a per-source cap.
 
@@ -67,10 +70,16 @@ class AnalysisRunPipeline:
             job_sources: Ordered list of (source_name, adapter) pairs to fetch from.
             scoring_service: Per-listing scoring with retry, cap, and FinOps totals.
             max_listings: Maximum listings to request per source (PRD cap: 50).
+            notification_port: Optional port for the run-completion email; when omitted
+                no email is sent (e.g. unit tests not exercising notification).
+            frontend_base_url: SPA origin used to build the results deep link emailed
+                on completion.
         """
         self._job_sources = job_sources
         self._scoring_service = scoring_service
         self._max_listings = max_listings
+        self._notification_port = notification_port
+        self._frontend_base_url = frontend_base_url.rstrip("/")
 
     def run(self, analysis_run: AnalysisRun, session: Session) -> None:
         """Execute the full pipeline for one queued run, committing as it progresses.
@@ -191,6 +200,32 @@ class AnalysisRunPipeline:
             analysis_run.status,
             persisted,
         )
+
+        if analysis_run.status == AnalysisRunStatus.COMPLETE:
+            self._send_completion_email(analysis_run)
+
+    def _send_completion_email(self, analysis_run: AnalysisRun) -> None:
+        """Email the owner a results deep link after a COMPLETE run.
+
+        Sent only on COMPLETE (CONTEXT §Run Notification). Delivery failures are
+        logged and swallowed: the run is already finalized and committed, so a
+        provider outage must never demote its terminal status or crash the worker.
+
+        Args:
+            analysis_run: The finalized run, with its owner relationship loaded.
+        """
+        if self._notification_port is None:
+            return
+        results_url = f"{self._frontend_base_url}/runs/{analysis_run.id}"
+        try:
+            self._notification_port.send_run_complete_email(
+                to_email=analysis_run.user.email,
+                results_url=results_url,
+            )
+        except Exception:  # noqa: BLE001 — email is best-effort; run already committed
+            logger.warning(
+                "failed to send completion email for run %s", analysis_run.id, exc_info=True
+            )
 
     @staticmethod
     def _persist_results(

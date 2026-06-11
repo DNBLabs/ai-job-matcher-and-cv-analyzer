@@ -9,6 +9,7 @@ from app.adapters.factory import (
     create_adzuna_job_source,
     create_indeed_job_source,
     create_job_queue,
+    create_notification_port,
     create_scoring_llm_client,
     create_secret_provider,
 )
@@ -67,6 +68,8 @@ def main() -> None:
             ("indeed", create_indeed_job_source()),
         ],
         scoring_service=ScoringService(create_scoring_llm_client(settings, secret_provider)),
+        notification_port=create_notification_port(settings, secret_provider),
+        frontend_base_url=settings.frontend_base_url,
     )
 
     def process_message(message: dict[str, Any]) -> None:

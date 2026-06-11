@@ -7,6 +7,7 @@ from app.adapters.local.log_notification import LogNotificationPort
 from app.adapters.local.memory_blob_store import MemoryBlobStore
 from app.adapters.local.rabbitmq_job_queue import RabbitMQJobQueue
 from app.adapters.openai_client import OpenAiLlmClient
+from app.adapters.resend_notification import ResendNotificationPort
 from app.config import Settings
 from app.job_sources.adzuna import AdzunaJobSource
 from app.job_sources.base import JobSource
@@ -67,17 +68,31 @@ def create_job_queue(settings: Settings) -> JobQueue:
     raise ValueError(f"Unsupported job queue backend: {settings.job_queue_backend}")
 
 
-def create_notification_port(settings: Settings) -> NotificationPort:
+def create_notification_port(
+    settings: Settings, secret_provider: SecretProvider
+) -> NotificationPort:
     """Return a NotificationPort adapter for the configured backend.
 
     Args:
         settings: Application settings describing notification wiring.
+        secret_provider: SecretProvider port resolving ``RESEND_API_KEY`` for the
+            production backend (API/Worker Managed Identity scope in production).
 
     Returns:
-        NotificationPort: Log-backed implementation for local development.
+        NotificationPort: Log-backed (local) or Resend-backed (production) adapter.
+
+    Raises:
+        ValueError: When the configured notification backend is unsupported.
+        SecretNotFoundError: When the resend backend lacks ``RESEND_API_KEY``.
     """
-    _ = settings
-    return LogNotificationPort()
+    if settings.notification_backend == "log":
+        return LogNotificationPort()
+    if settings.notification_backend == "resend":
+        return ResendNotificationPort(
+            api_key=secret_provider.get("RESEND_API_KEY"),
+            from_email=settings.email_from,
+        )
+    raise ValueError(f"Unsupported notification backend: {settings.notification_backend}")
 
 
 def create_secret_provider(settings: Settings) -> SecretProvider:
