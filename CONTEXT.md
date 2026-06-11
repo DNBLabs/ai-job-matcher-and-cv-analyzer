@@ -106,6 +106,7 @@ Domain glossary for the AI Job Matcher & CV Analyzer.
 - **2026-06-05:** FinOps budget accepted — Profile A traffic, £75/mo cap, scale-to-zero ACA; see `docs/finance/BUDGET.md`
 - **2026-06-05:** Final architecture accepted — PostgreSQL-only sessions/rate limits (Redis eliminated); see `docs/adr/FINAL_ARCHITECTURE.md`
 - **2026-06-05:** CV demo mode — keep prod stack deployed with scale-to-zero ACA (~£40–55/mo); loading UI for cold start; `terraform destroy` only off-season when demo URL removed from CV
+- **2026-06-11:** Transactional email transport — **Microsoft 365 shared mailbox via Graph API** (`sendMail`), authenticated by Container App **Managed Identity** (no stored API key), replacing Resend. `Mail.Send` application permission **must** be scoped to the single shared mailbox via an Exchange Online **Application Access Policy**. From = shared mailbox address. See "Run Notification" §Email delivery and IMPLEMENTATION_PLAN Open Questions / Task 27.
 
 ## 4. Financial Guardrails
 
@@ -173,7 +174,7 @@ How a Job Seeker learns an Analysis Run has finished:
 
 Both channels are required for MVP.
 
-**Email delivery (prod requirement):** Transactional email (magic link + run-complete) is delivered via **Resend**. Real inbox delivery requires `EMAIL_FROM` set to a sender on a **domain verified in Resend with SPF/DKIM DNS records** — an unverified sender is rejected — plus `RESEND_API_KEY` loaded from Key Vault via the SecretProvider. Plan a post-deploy real-inbox deliverability check, as magic links to a freshly verified domain commonly land in spam until reputation warms. Local dev uses the `log` adapter (no actual send); sign-in is completed with a minted verify link.
+**Email delivery (prod requirement):** Transactional email (magic link + run-complete) is sent from a **Microsoft 365 shared mailbox via the Graph API** (`POST /users/{mailbox}/sendMail`). `EMAIL_FROM` is the shared mailbox address; SPF/DKIM/DMARC are already established on the M365 domain, so deliverability does not depend on warming a new sender domain. The Container App authenticates to Graph with its **Managed Identity** — no API key is stored. **Least privilege:** the app's `Mail.Send` *application* permission grants send-as-any-mailbox by default and **must** be constrained to only the shared mailbox with an Exchange Online **Application Access Policy** (`New-ApplicationAccessPolicy`). Verify at build time that app-only `sendMail` to the shared mailbox does not require a per-mailbox licence. Plan a post-deploy real-inbox deliverability check. Local dev uses the `log` adapter (no actual send); sign-in is completed with a minted verify link.
 
 ### Job Search
 The set of criteria a Job Seeker defines to scope which listings workers scrape: role/keywords, location (or remote), and optional filters (experience level, employment type). One Analysis Run pairs one CV with one Job Search.
