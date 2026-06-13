@@ -57,10 +57,10 @@ describe("RunDetail", () => {
         company: "Acme",
         url: "https://example.com",
         match_score: 80,
-        interview_likelihood: "High",
+        interview_likelihood: "high",
         breakdown: {
           match_score: 80,
-          interview_likelihood: "High",
+          interview_likelihood: "high",
           matched_skills: [],
           skill_gaps: [],
           red_flags: [],

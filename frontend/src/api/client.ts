@@ -75,7 +75,7 @@ export interface RunQuota {
 /** Full AI breakdown stored on each Job Match Result. */
 export interface JobMatchBreakdown {
   match_score: number;
-  interview_likelihood: "High" | "Medium" | "Low";
+  interview_likelihood: "high" | "medium" | "low";
   matched_skills: string[];
   skill_gaps: string[];
   red_flags: string[];
@@ -91,7 +91,7 @@ export interface JobMatchResult {
   company: string;
   url: string;
   match_score: number;
-  interview_likelihood: "High" | "Medium" | "Low";
+  interview_likelihood: "high" | "medium" | "low";
   breakdown: JobMatchBreakdown;
   created_at: string;
 }
