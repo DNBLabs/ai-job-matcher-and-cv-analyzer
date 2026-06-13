@@ -134,8 +134,8 @@ Repo scaffold + Docker Compose
 - [x] Task 21: Dashboard, CV wizard, run status polling, and cold-start UX — Extended API client (CVs, titles, runs, quota, `/health`); `useRunPolling` (terminal-aware status polling) + `useApiWarmup` (cold-start detection); Dashboard (CV list + delete, run history, warming banner), NewRun wizard (`CvUploadForm` → `TitleSuggestions` select/edit → `JobSearchForm` with quota + UK-city/Remote picker), RunDetail polling page; `/runs/new` + `/runs/:runId` routes; 59 Vitest tests green
 
 #### Checkpoint: End-to-End UX (Local)
-- [ ] Job Seeker completes full flow in browser: sign-in → upload → search → results
-- [ ] Dashboard polls run status; completion email sent (dev sink or provider sandbox)
+- [x] Job Seeker completes full flow in browser: sign-in → upload → search → results
+- [x] Dashboard polls run status; completion email sent (dev sink or provider sandbox)
 - [x] Cold-start loading state present for scale-to-zero messaging — `useApiWarmup` probes `/health`; Dashboard shows a "Waking the service up…" banner while warming
 
 ---
@@ -682,7 +682,7 @@ Repo scaffold + Docker Compose
 - [x] Quota displayed before starting run — `JobSearchForm` loads `GET /runs/quota`, renders "N runs left today" and blocks on concurrent run
 
 **Verification:**
-- [ ] Manual E2E against local Compose
+- [x] Manual E2E against local Compose — verified 2026-06-13; 16 real Indeed listings scraped, scored, run reached Complete (see docs/bugs/indeed-scraper-e2e-fix.md for scraper fixes required)
 - [x] Component test for polling hook status updates — `src/hooks/useRunPolling.test.ts` (polls through scraping→complete, stops on terminal, surfaces transient errors)
 
 **Dependencies:** Task 9, Task 11, Task 20
