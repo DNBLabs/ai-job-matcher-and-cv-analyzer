@@ -38,6 +38,9 @@ describe("App routing", () => {
     vi.mocked(client.pingHealth).mockResolvedValue(true);
     vi.mocked(client.listCvs).mockResolvedValue([]);
     vi.mocked(client.listRuns).mockResolvedValue([]);
+    // Dashboard also loads run quota; without this the auto-mock resolves
+    // undefined and `quota.concurrent_blocked` throws mid-render (flaky in CI).
+    vi.mocked(client.getRunQuota).mockResolvedValue({ remaining: 3, concurrent_blocked: false });
 
     renderAppAt("/dashboard");
 
