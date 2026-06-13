@@ -96,6 +96,15 @@ export interface JobMatchResult {
   created_at: string;
 }
 
+/** User Account row surfaced to the admin operator console. */
+export interface AdminUser {
+  id: string;
+  email: string;
+  is_admin: boolean;
+  is_unlimited: boolean;
+  created_at: string;
+}
+
 /** Error carrying the HTTP status of a non-OK API response. */
 export class ApiError extends Error {
   readonly status: number;
@@ -263,6 +272,39 @@ export function getRunResults(runId: string): Promise<JobMatchResult[]> {
 /** Fetch remaining daily quota and concurrency state. */
 export function getRunQuota(): Promise<RunQuota> {
   return requestJson<RunQuota>("/runs/quota", {}, "Failed to load run quota");
+}
+
+/**
+ * Search User Accounts by email fragment (admin-only).
+ *
+ * @throws {ApiError} carrying the status; non-admins receive 404.
+ */
+export function searchAdminUsers(email: string): Promise<AdminUser[]> {
+  const query = new URLSearchParams({ email }).toString();
+  return requestJson<AdminUser[]>(
+    `/admin/users?${query}`,
+    {},
+    "Failed to search users",
+  );
+}
+
+/**
+ * Toggle a user's unlimited-quota flag (admin-only).
+ *
+ * @throws {ApiError} carrying the status; non-admins receive 404.
+ */
+export function setUserUnlimited(
+  userId: string,
+  isUnlimited: boolean,
+): Promise<AdminUser> {
+  return requestJson<AdminUser>(
+    `/admin/users/${userId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ is_unlimited: isUnlimited }),
+    },
+    "Could not update the user",
+  );
 }
 
 /**

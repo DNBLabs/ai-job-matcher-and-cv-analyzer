@@ -144,7 +144,7 @@ Repo scaffold + Docker Compose
 
 - [x] Task 22: Results view — sort, filters, divergence badges — Results page + ResultCard; composable filters (Likelihood, Source, min score); divergence badges (≥70+low / <50+high); partial-failure banner; 13 Vitest tests green (#30)
 - [x] Task 23: Run history, quota display, and unlimited bypass — `QuotaBanner` (remaining/unlimited/concurrent states) + `RunHistory` (CV name resolved from active CVs with "Deleted CV" fallback, search summary, status, date) presentational components; Dashboard fetches `GET /runs/quota`, renders the banner, and disables the "Start a new run" action when quota is exhausted or a run is active; `JobSearchForm` refactored to reuse `QuotaBanner`; 13 new Vitest tests (84 total green)
-- [ ] Task 24: Admin UI (`/admin`) — search users, toggle unlimited
+- [x] Task 24: Admin UI (`/admin`) — search users, toggle unlimited — `GET /admin/users?email=` (case-insensitive, LIKE-escaped, blank→empty, capped 50) + `PATCH /admin/users/{id}` (strict `is_unlimited` body, audit log) behind `require_admin` (404 for non-admins); `UserRepository`; SPA `/admin` page gated by `AdminRoute` with a dashboard nav link shown only to admins; 10 backend + 15 frontend tests green
 
 #### Checkpoint: Feature Complete (Application)
 - [ ] All PRD user stories 1–50 verifiable locally
@@ -745,14 +745,14 @@ Repo scaffold + Docker Compose
 **Description:** Admin page at `/admin` (nav link only if `is_admin` from session/user endpoint). Search by email, toggle `is_unlimited`. API: `GET /admin/users?email=`, `PATCH /admin/users/{id}`. Audit log on toggle.
 
 **Acceptance criteria:**
-- [ ] Non-admin receives 404 on admin routes and no nav link
-- [ ] Search returns matching users
-- [ ] PATCH updates `is_unlimited`; audit_log entry created
-- [ ] Admin bootstrap seed sets operator email `is_admin=true`
+- [x] Non-admin receives 404 on admin routes and no nav link — `require_admin` returns 404 (`test_non_admin_gets_404_on_search`/`_patch`); SPA `AdminRoute` redirects non-admins to `/dashboard` and the nav link renders only when `user.is_admin`
+- [x] Search returns matching users — `GET /admin/users?email=` via `UserRepository.search_by_email` (case-insensitive, LIKE-escaped, capped 50; blank query returns empty) (`test_search_users_returns_email_matches`)
+- [x] PATCH updates `is_unlimited`; audit_log entry created — `PATCH /admin/users/{id}` with strict body; `admin.user.unlimited_toggled` audit entry with actor+subject+metadata (`test_patch_user_toggles_unlimited_and_writes_audit`)
+- [x] Admin bootstrap seed sets operator email `is_admin=true` — `scripts/seed_admin.py` upserts `is_admin`/`is_unlimited`
 
 **Verification:**
-- [ ] Integration test: admin toggle; non-admin 404
-- [ ] Seed script documented in README
+- [x] Integration test: admin toggle; non-admin 404 — `tests/admin/test_admin_api.py` (10 tests: search, toggle+audit, 404/422/401, mass-assignment rejection)
+- [x] Seed script documented in README — `backend/README.md` migrations section
 
 **Dependencies:** Task 6, Task 20
 

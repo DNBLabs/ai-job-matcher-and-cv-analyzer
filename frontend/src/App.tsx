@@ -6,8 +6,10 @@
  */
 import { Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
+import { AdminRoute } from "./auth/AdminRoute";
 import { AuthProvider } from "./auth/AuthProvider";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { Admin } from "./pages/Admin";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
 import { NewRun } from "./pages/NewRun";
@@ -50,6 +52,14 @@ function App() {
             <ProtectedRoute>
               <RunDetail />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <Admin />
+            </AdminRoute>
           }
         />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
