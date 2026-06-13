@@ -48,6 +48,12 @@ variable "name_token" {
   }
 }
 
+variable "email_from" {
+  description = "Shared mailbox the Graph sendMail backend sends transactional email from (CONTEXT 2026-06-11)."
+  type        = string
+  default     = "noreply@dnblabs.co.uk"
+}
+
 variable "postgres_administrator_login" {
   description = "PostgreSQL administrator login name."
   type        = string

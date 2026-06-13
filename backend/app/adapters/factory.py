@@ -1,5 +1,10 @@
 """Factory functions wiring infrastructure ports from application settings."""
 
+from app.adapters.azure.blob_store import AzureBlobStore
+from app.adapters.azure.credential import create_azure_credential
+from app.adapters.azure.graph_notification import GraphApiNotificationPort
+from app.adapters.azure.key_vault_secret_provider import KeyVaultSecretProvider
+from app.adapters.azure.service_bus_queue import ServiceBusJobQueue
 from app.adapters.local.azurite_blob_store import AzuriteBlobStore
 from app.adapters.local.env_secret_provider import EnvSecretProvider
 from app.adapters.local.in_process_job_queue import InProcessJobQueue
@@ -7,7 +12,6 @@ from app.adapters.local.log_notification import LogNotificationPort
 from app.adapters.local.memory_blob_store import MemoryBlobStore
 from app.adapters.local.rabbitmq_job_queue import RabbitMQJobQueue
 from app.adapters.openai_client import OpenAiLlmClient
-from app.adapters.resend_notification import ResendNotificationPort
 from app.config import Settings
 from app.job_sources.adzuna import AdzunaJobSource
 from app.job_sources.base import JobSource
@@ -41,6 +45,15 @@ def create_blob_store(settings: Settings) -> BlobStore:
             container_name=settings.blob_container_name,
             key_prefix=settings.blob_key_prefix,
         )
+    if settings.blob_store_backend == "azure":
+        if not settings.blob_account_url:
+            raise ValueError("BLOB_ACCOUNT_URL is required for the azure blob backend")
+        return AzureBlobStore(
+            account_url=settings.blob_account_url,
+            credential=create_azure_credential(settings.azure_client_id),
+            container_name=settings.blob_container_name,
+            key_prefix=settings.blob_key_prefix,
+        )
     raise ValueError(f"Unsupported blob store backend: {settings.blob_store_backend}")
 
 
@@ -65,6 +78,14 @@ def create_job_queue(settings: Settings) -> JobQueue:
             rabbitmq_url=settings.rabbitmq_url,
             queue_name=settings.job_queue_name,
         )
+    if settings.job_queue_backend == "servicebus":
+        if not settings.servicebus_namespace:
+            raise ValueError("SERVICEBUS_NAMESPACE is required for the servicebus job queue backend")
+        return ServiceBusJobQueue(
+            queue_name=settings.job_queue_name,
+            fully_qualified_namespace=settings.servicebus_namespace,
+            credential=create_azure_credential(settings.azure_client_id),
+        )
     raise ValueError(f"Unsupported job queue backend: {settings.job_queue_backend}")
 
 
@@ -75,22 +96,21 @@ def create_notification_port(
 
     Args:
         settings: Application settings describing notification wiring.
-        secret_provider: SecretProvider port resolving ``RESEND_API_KEY`` for the
-            production backend (API/Worker Managed Identity scope in production).
+        secret_provider: Unused by the graph backend (Managed Identity, no stored key);
+            kept for interface symmetry with the other factory functions.
 
     Returns:
-        NotificationPort: Log-backed (local) or Resend-backed (production) adapter.
+        NotificationPort: Log-backed (local) or Graph-backed (production) adapter.
 
     Raises:
         ValueError: When the configured notification backend is unsupported.
-        SecretNotFoundError: When the resend backend lacks ``RESEND_API_KEY``.
     """
     if settings.notification_backend == "log":
         return LogNotificationPort()
-    if settings.notification_backend == "resend":
-        return ResendNotificationPort(
-            api_key=secret_provider.get("RESEND_API_KEY"),
-            from_email=settings.email_from,
+    if settings.notification_backend == "graph":
+        return GraphApiNotificationPort(
+            mailbox=settings.email_from,
+            credential=create_azure_credential(settings.azure_client_id),
         )
     raise ValueError(f"Unsupported notification backend: {settings.notification_backend}")
 
@@ -102,10 +122,20 @@ def create_secret_provider(settings: Settings) -> SecretProvider:
         settings: Application settings describing secret resolution wiring.
 
     Returns:
-        SecretProvider: Environment-backed implementation for local development.
+        SecretProvider: Environment-backed (local) or Key Vault-backed (production) adapter.
+
+    Raises:
+        ValueError: When the keyvault backend is selected without ``KEY_VAULT_URI``.
     """
     if settings.secret_provider_backend == "env":
         return EnvSecretProvider()
+    if settings.secret_provider_backend == "keyvault":
+        if not settings.key_vault_uri:
+            raise ValueError("KEY_VAULT_URI is required for the keyvault secret provider backend")
+        return KeyVaultSecretProvider(
+            vault_url=settings.key_vault_uri,
+            credential=create_azure_credential(settings.azure_client_id),
+        )
     raise ValueError(f"Unsupported secret provider backend: {settings.secret_provider_backend}")
 
 

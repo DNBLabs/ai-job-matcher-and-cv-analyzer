@@ -1,8 +1,9 @@
 """Pure transactional email templates for magic-link and run-completion mail.
 
 Templates are provider-agnostic: each builder takes a URL and returns an
-``EmailContent`` (subject + HTML + plain text). Adapters (log, Resend) render
-these and deliver them, so subject/body structure is testable without sending.
+``EmailContent`` (subject + HTML + plain text). Adapters (log, Microsoft Graph)
+render these and deliver them, so subject/body structure is testable without
+sending.
 
 No CV text, prompts, or tokens beyond the supplied URL are ever embedded
 (CONTEXT §3): the magic-link token lives only inside ``verify_url``, and the
