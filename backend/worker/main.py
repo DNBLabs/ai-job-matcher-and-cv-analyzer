@@ -13,6 +13,7 @@ from app.adapters.factory import (
     create_scoring_llm_client,
     create_secret_provider,
 )
+from app.ports.secret_provider import SecretNotFoundError
 from app.config import get_settings
 from app.db.session import get_session_factory
 from app.services.scoring_service import ScoringService
@@ -62,11 +63,14 @@ def main() -> None:
     job_queue = create_job_queue(settings)
 
     secret_provider = create_secret_provider(settings)
+    job_sources = []
+    try:
+        job_sources.append(("adzuna", create_adzuna_job_source(secret_provider)))
+    except SecretNotFoundError:
+        logger.warning("ADZUNA_APP_ID/KEY not configured — skipping Adzuna source")
+    job_sources.append(("indeed", create_indeed_job_source()))
     pipeline = AnalysisRunPipeline(
-        job_sources=[
-            ("adzuna", create_adzuna_job_source(secret_provider)),
-            ("indeed", create_indeed_job_source()),
-        ],
+        job_sources=job_sources,
         scoring_service=ScoringService(create_scoring_llm_client(settings, secret_provider)),
         notification_port=create_notification_port(settings, secret_provider),
         frontend_base_url=settings.frontend_base_url,
