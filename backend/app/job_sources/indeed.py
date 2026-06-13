@@ -4,15 +4,22 @@ Scrapes uk.indeed.com search results and normalises each card to NormalisedListi
 Retries up to twice on transient errors (HTTP 429, 5xx, timeout); raises
 JobSourceError immediately on non-transient 4xx failures.
 
+Uses curl_cffi to impersonate Chrome at the TLS layer, bypassing Cloudflare's
+JA3/JA4 fingerprinting that blocks plain httpx/requests.
+
 No live network calls in CI — all tests use recorded HTML fixtures.
 To run a live smoke test: set SMOKE_INDEED=1 and call fetch_listings directly.
 """
 
 import logging
+from typing import Any
 from urllib.parse import urlencode
 
 import httpx
 from bs4 import BeautifulSoup, Tag
+from curl_cffi.requests import Session as CurlSession
+from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+from curl_cffi.requests.exceptions import Timeout as CurlTimeout
 
 from app.domain.job_search import JobSearch
 from app.job_sources.base import JobSourceError, NormalisedListing
@@ -25,37 +32,44 @@ _SOURCE_NAME = "indeed"
 _MAX_RETRIES = 2
 _DEFAULT_TIMEOUT_SECONDS = 30.0
 
-# User-Agent required; without it Indeed returns a CAPTCHA / empty page.
 _DEFAULT_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0 Safari/537.36"
+        "Chrome/124.0.0.0 Safari/537.36"
     ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language": "en-GB,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Cache-Control": "max-age=0",
 }
+
+
+def _make_default_client() -> CurlSession:
+    """Return a curl_cffi Session impersonating Chrome for TLS fingerprint bypass."""
+    return CurlSession(
+        impersonate="chrome124",
+        headers=_DEFAULT_HEADERS,
+        timeout=_DEFAULT_TIMEOUT_SECONDS,
+    )
 
 
 class IndeedJobSource:
     """Indeed UK-backed JobSource adapter that scrapes job search result pages.
 
     Parses HTML using BeautifulSoup with Python's built-in html.parser.
-    Credentials are not required (public search pages); rate-limit headers
-    and User-Agent are set to reduce bot-detection friction.
+    Uses curl_cffi with Chrome impersonation to bypass Cloudflare TLS fingerprinting.
+    Credentials are not required (public search pages).
     """
 
-    def __init__(self, *, http_client: httpx.Client | None = None) -> None:
+    def __init__(self, *, http_client: Any | None = None) -> None:
         """Bind the adapter to an optional HTTP client.
 
         Args:
-            http_client: Optional pre-configured httpx.Client; a default 30s-timeout
-                client with appropriate headers is created when not supplied.
+            http_client: Optional pre-configured client; a curl_cffi Chrome-impersonating
+                session is created when not supplied. Tests may inject a mock here.
         """
-        self._http_client = http_client or httpx.Client(
-            timeout=_DEFAULT_TIMEOUT_SECONDS,
-            headers=_DEFAULT_HEADERS,
-            follow_redirects=True,
-        )
+        self._http_client = http_client if http_client is not None else _make_default_client()
 
     def fetch_listings(
         self, job_search: JobSearch, max_results: int = 50
@@ -85,7 +99,12 @@ class IndeedJobSource:
                 response.raise_for_status()
                 return self._parse_html(response.text, max_results)
 
-            except (httpx.TimeoutException, httpx.HTTPStatusError) as error:
+            except (
+                httpx.TimeoutException,
+                httpx.HTTPStatusError,
+                CurlTimeout,
+                CurlHTTPError,
+            ) as error:
                 if not self._is_transient(error):
                     raise JobSourceError(
                         f"Indeed request failed with non-retryable error: {error}"
@@ -115,7 +134,7 @@ class IndeedJobSource:
             job_search: Validated Job Search criteria.
 
         Returns:
-            str: Full search URL ready for httpx.
+            str: Full search URL ready for the HTTP client.
         """
         params: dict[str, str] = {"q": job_search.role}
         if not job_search.remote:
@@ -155,28 +174,23 @@ class IndeedJobSource:
         Returns:
             NormalisedListing | None: Parsed listing, or None if card is malformed.
         """
-        # Title comes from span[title] inside h2.jobTitle > a
-        title_el = card.select_one("h2.jobTitle a span[title]")
+        title_el = card.select_one(".jobTitle a span[title]")
         if title_el is None:
             return None
         title = (title_el.get("title") or "").strip()
         if not title:
             return None
 
-        # URL: relative href on the anchor — promoted to absolute
-        link_el = card.select_one("h2.jobTitle a")
+        link_el = card.select_one(".jobTitle a")
         href = (link_el.get("href") or "") if link_el else ""
         url = f"{_BASE_URL}{href}" if href.startswith("/") else href
 
-        # Company name
         company_el = card.select_one("[data-testid='company-name']")
         company = company_el.get_text(strip=True) if company_el else ""
 
-        # Location
         location_el = card.select_one("[data-testid='text-location']")
         location = location_el.get_text(strip=True) if location_el else ""
 
-        # Description snippet
         desc_el = card.select_one(".job-snippet")
         description = desc_el.get_text(separator=" ", strip=True) if desc_el else ""
 
@@ -193,15 +207,18 @@ class IndeedJobSource:
     def _is_transient(error: Exception) -> bool:
         """Return True when the error is safe to retry (timeout, 429, or 5xx).
 
+        Handles both httpx exceptions (injected by tests) and curl_cffi exceptions
+        (raised in production).
+
         Args:
-            error: Exception raised by httpx during a request attempt.
+            error: Exception raised by the HTTP client during a request attempt.
 
         Returns:
             bool: True when the request should be retried.
         """
-        if isinstance(error, httpx.TimeoutException):
+        if isinstance(error, (httpx.TimeoutException, CurlTimeout)):
             return True
-        if isinstance(error, httpx.HTTPStatusError):
+        if isinstance(error, (httpx.HTTPStatusError, CurlHTTPError)):
             status = error.response.status_code
             return status == 429 or status >= 500
         return False
