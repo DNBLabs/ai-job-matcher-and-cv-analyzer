@@ -27,11 +27,15 @@ class Settings(BaseSettings):
 
     blob_store_backend: str = Field(
         default="memory",
-        description="BlobStore adapter: memory (CI/local pytest) or azurite (Docker Compose).",
+        description="BlobStore adapter: memory (CI/local pytest), azurite (Compose), or azure (prod MI).",
     )
     azure_storage_connection_string: str | None = Field(
         default=None,
         description="Azure Storage connection string for Azurite or production Blob Storage.",
+    )
+    blob_account_url: str | None = Field(
+        default=None,
+        description="Blob endpoint (https://<account>.blob.core.windows.net) for the azure MI backend.",
     )
     blob_container_name: str = Field(
         default="cvs",
@@ -44,7 +48,7 @@ class Settings(BaseSettings):
 
     job_queue_backend: str = Field(
         default="in_process",
-        description="JobQueue adapter: in_process (CI/local pytest) or rabbitmq (Docker Compose).",
+        description="JobQueue adapter: in_process (CI/local pytest), rabbitmq (Compose), or servicebus (prod MI).",
     )
     rabbitmq_url: str | None = Field(
         default=None,
@@ -54,10 +58,22 @@ class Settings(BaseSettings):
         default="analysis-runs",
         description="Durable queue name for Analysis Run dispatch messages.",
     )
+    servicebus_namespace: str | None = Field(
+        default=None,
+        description="Service Bus fully qualified namespace (<ns>.servicebus.windows.net) for the prod MI backend.",
+    )
 
     secret_provider_backend: str = Field(
         default="env",
-        description="SecretProvider adapter: env reads process environment variables.",
+        description="SecretProvider adapter: env (local) or keyvault (prod, reads Key Vault via MI).",
+    )
+    key_vault_uri: str | None = Field(
+        default=None,
+        description="Key Vault URI (https://<vault>.vault.azure.net/) for the keyvault SecretProvider backend.",
+    )
+    azure_client_id: str | None = Field(
+        default=None,
+        description="User-assigned Managed Identity client id used by the Azure adapters' credential.",
     )
     google_oauth_redirect_uri: str = Field(
         default="http://localhost:8000/auth/google/callback",
@@ -77,11 +93,11 @@ class Settings(BaseSettings):
     )
     notification_backend: str = Field(
         default="log",
-        description="NotificationPort adapter: log (local dev) or resend (production).",
+        description="NotificationPort adapter: log (local dev) or graph (production M365 sendMail via MI).",
     )
     email_from: str = Field(
-        default="AI Job Matcher <onboarding@resend.dev>",
-        description="Verified sender for transactional email (Resend backend).",
+        default="noreply@dnblabs.co.uk",
+        description="Shared mailbox the graph backend sends from (CONTEXT 2026-06-11 decision).",
     )
     openai_title_model: str = Field(
         default="gpt-4o-mini",

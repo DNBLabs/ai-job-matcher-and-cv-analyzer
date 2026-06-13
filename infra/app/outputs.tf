@@ -44,3 +44,13 @@ output "worker_identity_client_id" {
   description = "Client ID of the worker managed identity."
   value       = azurerm_user_assigned_identity.worker.client_id
 }
+
+output "api_identity_principal_id" {
+  description = "Object (principal) ID of the API MI — target for the out-of-band Graph Mail.Send grant (docs/ops/RUNBOOK.md)."
+  value       = azurerm_user_assigned_identity.api.principal_id
+}
+
+output "worker_identity_principal_id" {
+  description = "Object (principal) ID of the worker MI — target for the out-of-band Graph Mail.Send grant (docs/ops/RUNBOOK.md)."
+  value       = azurerm_user_assigned_identity.worker.principal_id
+}

@@ -150,6 +150,18 @@ resource "azurerm_container_app" "api" {
         name        = "GOOGLE_OAUTH_CLIENT_SECRET"
         secret_name = "google-oauth-client-secret"
       }
+      # Transactional email via Microsoft Graph sendMail using the API MI
+      # (CONTEXT 2026-06-11). No API key: Mail.Send is granted to the MI and
+      # constrained to EMAIL_FROM by an Exchange Application Access Policy
+      # (docs/adr/0005, docs/ops/RUNBOOK.md).
+      env {
+        name  = "NOTIFICATION_BACKEND"
+        value = "graph"
+      }
+      env {
+        name  = "EMAIL_FROM"
+        value = var.email_from
+      }
     }
   }
 
@@ -284,6 +296,16 @@ resource "azurerm_container_app" "worker" {
       env {
         name        = "ADZUNA_APP_KEY"
         secret_name = "adzuna-app-key"
+      }
+      # Run-completion email via Microsoft Graph sendMail using the worker MI
+      # (same shared mailbox + Application Access Policy as the API; docs/adr/0005).
+      env {
+        name  = "NOTIFICATION_BACKEND"
+        value = "graph"
+      }
+      env {
+        name  = "EMAIL_FROM"
+        value = var.email_from
       }
     }
 

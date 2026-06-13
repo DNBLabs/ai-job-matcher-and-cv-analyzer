@@ -157,7 +157,7 @@ Repo scaffold + Docker Compose
 
 - [x] Task 25: Terraform bootstrap stack (remote state)
 - [x] Task 26: Terraform application stack (ACA, Postgres, SB, Blob, KV, ACR)
-- [ ] Task 27: Azure adapters (Blob, Service Bus, Key Vault) and MI wiring
+- [x] Task 27: Azure adapters (Blob, Service Bus, Key Vault) and MI wiring — `AzureBlobStore` (MI, shared `BlobServiceBlobStore` base with Azurite), `ServiceBusJobQueue` (MI send/receive, drain-to-exit consume), `KeyVaultSecretProvider` (MI, env→kebab name map), `GraphApiNotificationPort` (M365 `sendMail` via MI; Resend removed); factory + Settings wired by env (`azure`/`servicebus`/`keyvault`/`graph`); 27 mocked-SDK contract tests; Terraform `EMAIL_FROM`/`NOTIFICATION_BACKEND=graph` on both apps + MI principal-id outputs; ADR-0005 + `docs/ops/RUNBOOK.md` (out-of-band Mail.Send + Application Access Policy)
 - [ ] Task 28: GitHub Actions — PR gates (lint, test, validate, CVE scan)
 - [ ] Task 29: GitHub Actions — prod deploy (OIDC, SHA tags, terraform apply)
 - [ ] Task 30: Observability and FinOps alerts (Log Analytics, budgets)
@@ -814,15 +814,15 @@ Repo scaffold + Docker Compose
 **Description:** Production adapters for three ports using Azure SDK. Startup wiring from env/identity. Separate Managed Identities: API (blob RW cvs/, SB send, KV OAuth+email), Worker (blob read cvs/, SB receive, KV OpenAI+Adzuna). Non-root containers. Also includes the **`GraphApiNotificationPort`** transactional-email adapter (M365 shared mailbox `sendMail`, MI-authenticated; decision 2026-06-11, replaces Resend).
 
 **Acceptance criteria:**
-- [ ] Adapters pass same contract tests as local (with Azure emulator or mocked SDK)
-- [ ] MI role assignments match THREAT_MODEL least privilege
-- [ ] No secrets in image or Terraform state plaintext
-- [ ] `GraphApiNotificationPort` sends via shared mailbox using MI; `Mail.Send` app permission constrained to that one mailbox by an Exchange Online Application Access Policy
+- [x] Adapters pass same contract tests as local (with Azure emulator or mocked SDK) — mocked-SDK contract tests in `tests/adapters/` mirror the `tests/ports/` assertions for blob/queue/secret; the Azurite + Azure blob adapters share `BlobServiceBlobStore` so they cannot drift
+- [x] MI role assignments match THREAT_MODEL least privilege — API MI: Blob RW `cvs/`, SB send, KV get OAuth+DB; Worker MI: Blob read-only, SB receive, KV get OpenAI+Adzuna+DB (`infra/app/identity.tf`, Task 26); Graph `Mail.Send` for both MIs added via runbook (no `azurerm` resource)
+- [x] No secrets in image or Terraform state plaintext — all adapters authenticate with the Container App Managed Identity; KV holds the only stored secrets (placeholders in state, real values set out-of-band); Graph email uses MI, no API key
+- [x] `GraphApiNotificationPort` sends via shared mailbox using MI — adapter posts to `/users/{mailbox}/sendMail` with the MI token; the `Mail.Send` grant + Exchange **Application Access Policy** constraint are mandatory out-of-band steps documented in `docs/ops/RUNBOOK.md` (no Terraform/`azurerm` resource exists for them)
 
 **Verification:**
-- [ ] Contract tests with mocked Azure clients (incl. mocked Graph `sendMail`)
-- [ ] Deployed smoke: blob put/get via API MI
-- [ ] Deployed smoke: magic-link email lands in a real inbox from the shared mailbox
+- [x] Contract tests with mocked Azure clients (incl. mocked Graph `sendMail`) — `tests/adapters/` (27 tests): KV, blob, Service Bus, Graph, and factory wiring
+- [ ] Deployed smoke: blob put/get via API MI — deferred to deploy (Phase H; needs a deploy target)
+- [ ] Deployed smoke: magic-link email lands in a real inbox from the shared mailbox — deferred to deploy (operator post-deploy check, RUNBOOK §2c)
 
 **Dependencies:** Task 1, Task 26
 

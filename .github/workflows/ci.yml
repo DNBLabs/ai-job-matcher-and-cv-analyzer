@@ -108,6 +108,10 @@ jobs:
         # Source: https://docs.github.com/en/actions/using-containerized-services/creating-postgresql-service-containers
         run: pytest tests/auth/test_sessions_postgres.py -v
 
+      - name: Azure production adapter tests (Task 27)
+        # Mocked Azure SDK clients + fake MI credential; no Azure secrets in CI.
+        run: pytest tests/adapters/ -v
+
       - name: Full backend test suite
         run: pytest -v
 
