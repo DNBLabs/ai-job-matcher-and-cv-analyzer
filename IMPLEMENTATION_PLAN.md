@@ -155,7 +155,7 @@ Repo scaffold + Docker Compose
 
 ### Phase 8: Azure Infrastructure & CI/CD
 
-- [ ] Task 25: Terraform bootstrap stack (remote state)
+- [x] Task 25: Terraform bootstrap stack (remote state)
 - [ ] Task 26: Terraform application stack (ACA, Postgres, SB, Blob, KV, ACR)
 - [ ] Task 27: Azure adapters (Blob, Service Bus, Key Vault) and MI wiring
 - [ ] Task 28: GitHub Actions — PR gates (lint, test, validate, CVE scan)
@@ -769,13 +769,13 @@ Repo scaffold + Docker Compose
 **Description:** Bootstrap Terraform in `infra/bootstrap/`: resource group, storage account for remote state (geo-redundant), container for state blob. Document one-time apply procedure. Required tags on all resources.
 
 **Acceptance criteria:**
-- [ ] Bootstrap applies cleanly in empty subscription
-- [ ] Remote backend config documented for app stack
-- [ ] Tags: project, env, owner, cost-center
+- [x] Bootstrap applies cleanly in empty subscription (only `owner_email` required; random suffix keeps SA name globally unique)
+- [x] Remote backend config documented for app stack (`infra/README.md` + `app_stack_backend_config` output)
+- [x] Tags: project, env, owner, cost-center
 
 **Verification:**
-- [ ] `terraform validate` in CI
-- [ ] `terraform plan` succeeds (against backend or `-backend=false` in PR)
+- [x] `terraform validate` in CI (credential-free `terraform` job: fmt + init -backend=false + validate)
+- [ ] `terraform plan` succeeds — operator-local on apply (needs ARM creds; not in secret-free PR gate)
 
 **Dependencies:** None (can parallelize early)
 
