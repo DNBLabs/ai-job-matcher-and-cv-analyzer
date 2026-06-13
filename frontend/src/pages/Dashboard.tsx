@@ -64,9 +64,12 @@ export function Dashboard() {
     <main className="dashboard">
       <header className="dashboard-header">
         <h1>Dashboard</h1>
-        <button type="button" onClick={() => void signOut()}>
-          Sign out
-        </button>
+        <nav className="dashboard-nav">
+          {user?.is_admin && <Link to="/admin">Admin</Link>}
+          <button type="button" onClick={() => void signOut()}>
+            Sign out
+          </button>
+        </nav>
       </header>
       <p>Signed in as {user?.email}</p>
 
