@@ -699,14 +699,14 @@ Repo scaffold + Docker Compose
 **Description:** Results page: default sort Match Score desc, filters (Interview Likelihood, Job Source, min Match Score), full AI breakdown per card, divergence badges per PRD thresholds, external apply links open in new tab.
 
 **Acceptance criteria:**
-- [ ] Filters compose correctly on fixture data
-- [ ] Badges: "Skills fit, seniority gap" and "Competitive profile, weak keyword fit"
-- [ ] Interview Likelihood labeled as AI estimate
-- [ ] Partial failure banner when `source_failures` present
+- [x] Filters compose correctly on fixture data — 6 Results tests incl. compose test; likelihood/source/minScore all compose via AND logic
+- [x] Badges: "Skills fit, seniority gap" and "Competitive profile, weak keyword fit" — `getDivergenceBadge` in `ResultCard.tsx` mirrors backend thresholds; 2 badge tests green
+- [x] Interview Likelihood labeled as AI estimate — rendered as "High (AI estimate)" in `ResultCard`
+- [x] Partial failure banner when `source_failures` present — renders "Some job sources failed…" alert
 
 **Verification:**
-- [ ] Vitest component tests with fixture result sets
-- [ ] Manual filter interaction
+- [x] Vitest component tests with fixture result sets — 7 ResultCard + 6 Results = 13 tests, all green
+- [ ] Manual filter interaction — requires local Compose with a completed run
 
 **Dependencies:** Task 21, Task 18
 
