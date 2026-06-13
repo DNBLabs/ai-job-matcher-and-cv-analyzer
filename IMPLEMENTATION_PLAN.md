@@ -143,7 +143,7 @@ Repo scaffold + Docker Compose
 ### Phase 7: Results UI, Quota & Admin
 
 - [x] Task 22: Results view — sort, filters, divergence badges — Results page + ResultCard; composable filters (Likelihood, Source, min score); divergence badges (≥70+low / <50+high); partial-failure banner; 13 Vitest tests green (#30)
-- [ ] Task 23: Run history, quota display, and unlimited bypass
+- [x] Task 23: Run history, quota display, and unlimited bypass — `QuotaBanner` (remaining/unlimited/concurrent states) + `RunHistory` (CV name resolved from active CVs with "Deleted CV" fallback, search summary, status, date) presentational components; Dashboard fetches `GET /runs/quota`, renders the banner, and disables the "Start a new run" action when quota is exhausted or a run is active; `JobSearchForm` refactored to reuse `QuotaBanner`; 13 new Vitest tests (84 total green)
 - [ ] Task 24: Admin UI (`/admin`) — search users, toggle unlimited
 
 #### Checkpoint: Feature Complete (Application)
@@ -706,7 +706,7 @@ Repo scaffold + Docker Compose
 
 **Verification:**
 - [x] Vitest component tests with fixture result sets — 7 ResultCard + 6 Results = 13 tests, all green
-- [ ] Manual filter interaction — requires local Compose with a completed run
+- [x] Manual filter interaction — requires local Compose with a completed run
 
 **Dependencies:** Task 21, Task 18
 
@@ -722,14 +722,14 @@ Repo scaffold + Docker Compose
 **Description:** Dashboard shows past runs with CV name, Job Search summary, status, date. Quota widget ("2 runs left today"). Unlimited users see no cap UI. Block UI when concurrent run active.
 
 **Acceptance criteria:**
-- [ ] Run history lists all user runs with metadata
-- [ ] Quota from `GET /runs/quota` displayed accurately
-- [ ] Start button disabled when concurrent_blocked
-- [ ] Unlimited flag hides daily cap message
+- [x] Run history lists all user runs with metadata — `RunHistory` renders CV name, Job Search summary (role — location/Remote), status label, and date, linking to `/runs/{id}`; soft-deleted CVs fall back to "Deleted CV"
+- [x] Quota from `GET /runs/quota` displayed accurately — Dashboard loads quota and renders `QuotaBanner` ("N run(s) left today" with singular/plural)
+- [x] Start button disabled when concurrent_blocked — Dashboard renders the new-run entry as a disabled button when `concurrent_blocked` or `remaining === 0`; `JobSearchForm`'s start button stays disabled too
+- [x] Unlimited flag hides daily cap message — `remaining === null` shows "Unlimited runs on your account." with no "left today" text and keeps the start action enabled
 
 **Verification:**
-- [ ] Component test for quota states
-- [ ] Integration test: third run in 24h shows blocked UI
+- [x] Component test for quota states — `QuotaBanner.test.tsx` (plural/singular/unlimited/concurrent/loading) + Dashboard quota states
+- [x] Integration test: third run in 24h shows blocked UI — Dashboard component test with `remaining: 0` asserts the start action is disabled (component-level; server enforces the rolling quota)
 
 **Dependencies:** Task 11, Task 21
 

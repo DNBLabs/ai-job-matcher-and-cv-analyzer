@@ -13,6 +13,7 @@ import {
   REMOTE_LOCATION,
   UK_CITIES,
 } from "../domain/jobSearch";
+import { QuotaBanner } from "./QuotaBanner";
 
 type SubmitState =
   | { kind: "idle" }
@@ -30,14 +31,6 @@ export interface JobSearchFormProps {
   cvId: string;
   initialRole: string;
   onStarted: (run: Run) => void;
-}
-
-function quotaMessage(quota: RunQuota): string {
-  if (quota.remaining === null) {
-    return "Unlimited runs on your account.";
-  }
-  const noun = quota.remaining === 1 ? "run" : "runs";
-  return `${quota.remaining} ${noun} left today.`;
 }
 
 export function JobSearchForm({ cvId, initialRole, onStarted }: JobSearchFormProps) {
@@ -107,10 +100,7 @@ export function JobSearchForm({ cvId, initialRole, onStarted }: JobSearchFormPro
     <form className="job-search-form" onSubmit={handleSubmit}>
       <h3>Search for jobs</h3>
 
-      {quota && <p className="quota-note">{quotaMessage(quota)}</p>}
-      {concurrentBlocked && (
-        <p className="quota-note">A run is already running — wait for it to finish.</p>
-      )}
+      <QuotaBanner quota={quota} />
 
       <label htmlFor="role">Role or keywords</label>
       <input

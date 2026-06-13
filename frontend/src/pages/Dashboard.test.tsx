@@ -14,10 +14,26 @@ vi.mock("../api/client", async (importOriginal) => {
     listCvs: vi.fn(),
     listRuns: vi.fn(),
     deleteCv: vi.fn(),
+    getRunQuota: vi.fn(),
   };
 });
 
-import { getCurrentUser, listCvs, listRuns, pingHealth } from "../api/client";
+import {
+  getCurrentUser,
+  getRunQuota,
+  listCvs,
+  listRuns,
+  pingHealth,
+} from "../api/client";
+
+function signedIn() {
+  vi.mocked(getCurrentUser).mockResolvedValue({
+    id: "u-1",
+    email: "alex@example.com",
+    is_admin: false,
+  });
+  vi.mocked(pingHealth).mockResolvedValue(true);
+}
 
 function renderDashboard() {
   return render(
@@ -32,13 +48,9 @@ function renderDashboard() {
 describe("Dashboard", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("lists the user's CVs and run history", async () => {
-    vi.mocked(getCurrentUser).mockResolvedValue({
-      id: "u-1",
-      email: "alex@example.com",
-      is_admin: false,
-    });
-    vi.mocked(pingHealth).mockResolvedValue(true);
+  it("lists the user's CVs and run history with the CV name", async () => {
+    signedIn();
+    vi.mocked(getRunQuota).mockResolvedValue({ remaining: 2, concurrent_blocked: false });
     vi.mocked(listCvs).mockResolvedValue([
       { id: "cv-1", name: "React CV", uploaded_at: "2026-06-01T00:00:00Z" },
     ]);
@@ -54,18 +66,18 @@ describe("Dashboard", () => {
 
     renderDashboard();
 
-    await waitFor(() => expect(screen.getByText("React CV")).toBeInTheDocument());
+    // CV name appears both in the CV list and against the run.
+    await waitFor(() =>
+      expect(screen.getAllByText("React CV").length).toBeGreaterThanOrEqual(2),
+    );
     expect(screen.getByText(/Engineer/)).toBeInTheDocument();
+    expect(screen.getByText(/2 runs left today/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /start a new run/i })).toBeInTheDocument();
   });
 
   it("shows an empty state when there are no CVs", async () => {
-    vi.mocked(getCurrentUser).mockResolvedValue({
-      id: "u-1",
-      email: "alex@example.com",
-      is_admin: false,
-    });
-    vi.mocked(pingHealth).mockResolvedValue(true);
+    signedIn();
+    vi.mocked(getRunQuota).mockResolvedValue({ remaining: 3, concurrent_blocked: false });
     vi.mocked(listCvs).mockResolvedValue([]);
     vi.mocked(listRuns).mockResolvedValue([]);
 
@@ -74,5 +86,38 @@ describe("Dashboard", () => {
     await waitFor(() =>
       expect(screen.getByText(/no cvs yet|upload your first/i)).toBeInTheDocument(),
     );
+    expect(screen.getByText(/no runs yet/i)).toBeInTheDocument();
+  });
+
+  it("blocks starting a new run when the daily quota is exhausted", async () => {
+    signedIn();
+    vi.mocked(getRunQuota).mockResolvedValue({ remaining: 0, concurrent_blocked: false });
+    vi.mocked(listCvs).mockResolvedValue([
+      { id: "cv-1", name: "React CV", uploaded_at: "2026-06-01T00:00:00Z" },
+    ]);
+    vi.mocked(listRuns).mockResolvedValue([]);
+
+    renderDashboard();
+
+    await waitFor(() =>
+      expect(screen.getByText(/0 runs left today/i)).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: /start a new run/i })).toBeDisabled();
+    expect(screen.queryByRole("link", { name: /start a new run/i })).not.toBeInTheDocument();
+  });
+
+  it("hides the daily cap and keeps starting enabled for unlimited accounts", async () => {
+    signedIn();
+    vi.mocked(getRunQuota).mockResolvedValue({ remaining: null, concurrent_blocked: false });
+    vi.mocked(listCvs).mockResolvedValue([
+      { id: "cv-1", name: "React CV", uploaded_at: "2026-06-01T00:00:00Z" },
+    ]);
+    vi.mocked(listRuns).mockResolvedValue([]);
+
+    renderDashboard();
+
+    await waitFor(() => expect(screen.getByText(/unlimited/i)).toBeInTheDocument());
+    expect(screen.queryByText(/left today/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /start a new run/i })).toBeInTheDocument();
   });
 });

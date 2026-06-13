@@ -1,27 +1,30 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { deleteCv, listCvs, listRuns, type Cv, type Run } from "../api/client";
+import {
+  deleteCv,
+  getRunQuota,
+  listCvs,
+  listRuns,
+  type Cv,
+  type Run,
+  type RunQuota,
+} from "../api/client";
 import { useAuth } from "../auth/useAuth";
 import { useApiWarmup } from "../hooks/useApiWarmup";
-
-const STATUS_LABELS: Record<Run["status"], string> = {
-  queued: "Queued",
-  scraping: "Scraping",
-  scoring: "Scoring",
-  complete: "Complete",
-  failed: "Failed",
-  cancelled: "Cancelled",
-};
+import { QuotaBanner } from "../components/QuotaBanner";
+import { RunHistory } from "../components/RunHistory";
 
 /**
- * Authenticated landing page: CV library, run history, and the entry point to
- * the new-run wizard. Shows a warming banner while a scaled-to-zero API wakes.
+ * Authenticated landing page: CV library, run history, daily quota, and the
+ * entry point to the new-run wizard. Shows a warming banner while a
+ * scaled-to-zero API wakes.
  */
 export function Dashboard() {
   const { user, signOut } = useAuth();
   const { status: warmup } = useApiWarmup();
   const [cvs, setCvs] = useState<Cv[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
+  const [quota, setQuota] = useState<RunQuota | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
@@ -29,6 +32,11 @@ export function Dashboard() {
       const [cvList, runList] = await Promise.all([listCvs(), listRuns()]);
       setCvs(cvList);
       setRuns(runList);
+      try {
+        setQuota(await getRunQuota());
+      } catch {
+        // A missing quota readout is non-fatal; the server still enforces it.
+      }
     } finally {
       setLoaded(true);
     }
@@ -37,6 +45,15 @@ export function Dashboard() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const cvNames = useMemo(
+    () => new Map(cvs.map((cv) => [cv.id, cv.name])),
+    [cvs],
+  );
+
+  // Unlimited accounts have `remaining === null` and are never cap-blocked here.
+  const startBlocked =
+    quota !== null && (quota.concurrent_blocked || quota.remaining === 0);
 
   async function handleDelete(cvId: string) {
     await deleteCv(cvId);
@@ -60,12 +77,20 @@ export function Dashboard() {
         </p>
       )}
 
+      <QuotaBanner quota={quota} />
+
       <section className="cv-section">
         <div className="section-header">
           <h2>Your CVs</h2>
-          <Link className="primary-action" to="/runs/new">
-            Start a new run
-          </Link>
+          {startBlocked ? (
+            <button type="button" className="primary-action" disabled>
+              Start a new run
+            </button>
+          ) : (
+            <Link className="primary-action" to="/runs/new">
+              Start a new run
+            </Link>
+          )}
         </div>
         {loaded && cvs.length === 0 ? (
           <p className="empty-state">No CVs yet — upload your first CV to start a run.</p>
@@ -88,26 +113,7 @@ export function Dashboard() {
 
       <section className="run-section">
         <h2>Run history</h2>
-        {loaded && runs.length === 0 ? (
-          <p className="empty-state">No runs yet.</p>
-        ) : (
-          <ul className="run-list">
-            {runs.map((run) => (
-              <li key={run.id}>
-                <Link to={`/runs/${run.id}`}>
-                  {run.job_search.role} —{" "}
-                  {run.job_search.remote ? "Remote" : run.job_search.location}
-                </Link>
-                <span className={`run-status status-${run.status}`}>
-                  {STATUS_LABELS[run.status]}
-                </span>
-                <span className="run-date">
-                  {new Date(run.created_at).toLocaleDateString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        {loaded && <RunHistory runs={runs} cvNames={cvNames} />}
       </section>
     </main>
   );
