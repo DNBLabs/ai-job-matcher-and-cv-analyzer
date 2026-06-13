@@ -160,13 +160,17 @@ jobs:
         run: docker compose build
 
   terraform:
-    name: Terraform validate (bootstrap)
+    name: Terraform validate
     runs-on: ubuntu-latest
-    # Credential-free checks only — no Azure secrets in CI (Task 25).
+    # Credential-free checks only — no Azure secrets in CI (Task 25/26).
     # `terraform plan` needs ARM creds and is run locally by the operator on apply.
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: [bootstrap, app]
     defaults:
       run:
-        working-directory: infra/bootstrap
+        working-directory: infra/${{ matrix.stack }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -181,6 +185,8 @@ jobs:
         run: terraform fmt -check -recursive
 
       - name: Init (no backend)
+        # -backend=false skips remote state; the app stack uses a partial
+        # azurerm backend whose storage account name is supplied only on apply.
         run: terraform init -backend=false -input=false
 
       - name: Validate

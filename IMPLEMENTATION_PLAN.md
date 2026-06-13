@@ -156,7 +156,7 @@ Repo scaffold + Docker Compose
 ### Phase 8: Azure Infrastructure & CI/CD
 
 - [x] Task 25: Terraform bootstrap stack (remote state)
-- [ ] Task 26: Terraform application stack (ACA, Postgres, SB, Blob, KV, ACR)
+- [x] Task 26: Terraform application stack (ACA, Postgres, SB, Blob, KV, ACR)
 - [ ] Task 27: Azure adapters (Blob, Service Bus, Key Vault) and MI wiring
 - [ ] Task 28: GitHub Actions — PR gates (lint, test, validate, CVE scan)
 - [ ] Task 29: GitHub Actions — prod deploy (OIDC, SHA tags, terraform apply)
@@ -791,14 +791,14 @@ Repo scaffold + Docker Compose
 **Description:** Application stack modules: PostgreSQL Flexible B1ms (private VNet), Blob Storage (public access disabled), Service Bus Basic, Key Vault, ACR Basic, Log Analytics, Container Apps Environment, API app (ingress HTTPS, min 0/max 2), Worker app (ingress disabled, KEDA Service Bus scaler). Private endpoints for Postgres, Blob, Service Bus. **No Redis.**
 
 **Acceptance criteria:**
-- [ ] All PRD Azure resources provisioned with private networking
-- [ ] API public ingress only; worker ingress disabled
-- [ ] KEDA scaler on queue depth configured
-- [ ] PostgreSQL no public endpoint
+- [x] All PRD Azure resources provisioned with private networking — VNet + private endpoint (Blob), VNet-injection (Postgres), private DNS zones; **Service Bus exception:** Basic SKU has no private endpoint (Premium-only, breaks £75 cap) → MI+RBAC data plane + Listen-only KEDA SAS, see `docs/adr/0004-service-bus-basic-no-private-endpoint.md`
+- [x] API public ingress only; worker ingress disabled — `ca-*-api` `ingress { external_enabled = true }`; `ca-*-worker` has no `ingress` block (`infra/app/containerapps.tf`)
+- [x] KEDA scaler on queue depth configured — `custom_scale_rule` `azure-servicebus` on worker (`messageCount=5`)
+- [x] PostgreSQL no public endpoint — `public_network_access_enabled = false` + `delegated_subnet_id` + `private_dns_zone_id` (`infra/app/database.tf`)
 
 **Verification:**
-- [ ] `terraform plan` review against BUDGET.md line items
-- [ ] `terraform validate` in CI
+- [ ] `terraform plan` review against BUDGET.md line items — operator-local on apply (needs ARM creds; not in secret-free PR gate)
+- [x] `terraform validate` in CI — matrix `terraform` job covers `bootstrap` + `app` (`.github/workflows/ci.yml`)
 
 **Dependencies:** Task 25
 
