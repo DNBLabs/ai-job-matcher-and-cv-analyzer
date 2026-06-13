@@ -142,7 +142,7 @@ Repo scaffold + Docker Compose
 
 ### Phase 7: Results UI, Quota & Admin
 
-- [ ] Task 22: Results view — sort, filters, divergence badges
+- [x] Task 22: Results view — sort, filters, divergence badges — Results page + ResultCard; composable filters (Likelihood, Source, min score); divergence badges (≥70+low / <50+high); partial-failure banner; 13 Vitest tests green (#30)
 - [ ] Task 23: Run history, quota display, and unlimited bypass
 - [ ] Task 24: Admin UI (`/admin`) — search users, toggle unlimited
 

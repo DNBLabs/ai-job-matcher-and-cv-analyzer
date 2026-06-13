@@ -11,6 +11,7 @@ import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
 import { NewRun } from "./pages/NewRun";
+import { Results } from "./pages/Results";
 import { RunDetail } from "./pages/RunDetail";
 
 function App() {
@@ -32,6 +33,14 @@ function App() {
           element={
             <ProtectedRoute>
               <NewRun />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/runs/:runId/results"
+          element={
+            <ProtectedRoute>
+              <Results />
             </ProtectedRoute>
           }
         />
