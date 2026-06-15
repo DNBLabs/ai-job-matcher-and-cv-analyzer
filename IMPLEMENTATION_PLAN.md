@@ -158,7 +158,7 @@ Repo scaffold + Docker Compose
 - [x] Task 25: Terraform bootstrap stack (remote state)
 - [x] Task 26: Terraform application stack (ACA, Postgres, SB, Blob, KV, ACR)
 - [x] Task 27: Azure adapters (Blob, Service Bus, Key Vault) and MI wiring — `AzureBlobStore` (MI, shared `BlobServiceBlobStore` base with Azurite), `ServiceBusJobQueue` (MI send/receive, drain-to-exit consume), `KeyVaultSecretProvider` (MI, env→kebab name map), `GraphApiNotificationPort` (M365 `sendMail` via MI; Resend removed); factory + Settings wired by env (`azure`/`servicebus`/`keyvault`/`graph`); 27 mocked-SDK contract tests; Terraform `EMAIL_FROM`/`NOTIFICATION_BACKEND=graph` on both apps + MI principal-id outputs; ADR-0005 + `docs/ops/RUNBOOK.md` (out-of-band Mail.Send + Application Access Policy)
-- [ ] Task 28: GitHub Actions — PR gates (lint, test, validate, CVE scan)
+- [x] Task 28: GitHub Actions — PR gates (lint, test, validate, CVE scan) — `ci.yml` already covered pytest (ephemeral Postgres), frontend lint/test/build/`npm audit`, `terraform validate`, `docker compose build`, and pip/npm caching; this task added the `cve-scan` job (Trivy `@v0.36.0`, `severity=CRITICAL` + `ignore-unfixed` + `exit-code=1`) scanning the shared backend image to fail on Critical container CVEs with a published fix (#38)
 - [ ] Task 29: GitHub Actions — prod deploy (OIDC, SHA tags, terraform apply)
 - [ ] Task 30: Observability and FinOps alerts (Log Analytics, budgets)
 
@@ -838,14 +838,14 @@ Repo scaffold + Docker Compose
 **Description:** PR workflow: Python lint (ruff), pytest with Compose services, frontend lint/build/test, `terraform validate` + plan (no apply), Docker build api+worker, Trivy/Grype scan failing on Critical CVEs with fix available. Fork PRs cannot deploy.
 
 **Acceptance criteria:**
-- [ ] PR workflow runs on all branches except deploy
-- [ ] Critical CVE gate blocks merge
-- [ ] Tests use local adapters only (no Azure secrets in CI)
-- [ ] Caching for pip/npm layers
+- [x] PR workflow runs on all branches except deploy — `ci.yml` runs on every PR to `main`; no deploy workflow exists yet (Task 29)
+- [x] Critical CVE gate blocks merge — `cve-scan` job, Trivy `exit-code: 1` on CRITICAL CVEs with a published fix (`ignore-unfixed: true`)
+- [x] Tests use local adapters only (no Azure secrets in CI) — unchanged; no secrets referenced in CI
+- [x] Caching for pip/npm layers — `setup-python` pip cache + `setup-node` npm cache (since Task 0 baseline)
 
 **Verification:**
-- [ ] Open test PR; all checks green
-- [ ] Introduce dummy CVE test confirms gate fails
+- [x] Open test PR; all checks green — PR #38 CI green incl. `Container CVE scan` (48s)
+- [ ] Introduce dummy CVE test confirms gate fails — manual operator check; not committed (would intentionally break a dependency)
 
 **Dependencies:** Task 0, Task 25
 
