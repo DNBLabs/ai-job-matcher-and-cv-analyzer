@@ -195,3 +195,31 @@ jobs:
 
       - name: Validate
         run: terraform validate -no-color
+
+  cve-scan:
+    name: Container CVE scan
+    runs-on: ubuntu-latest
+    # Supply-chain gate (CONTEXT.md §Supply chain & CI/CD): fail on Critical
+    # container CVEs that have a published fix. API and worker share one backend
+    # image, so scanning it once covers both Container Apps.
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t ai-job-matcher-backend:${{ github.sha }} ./backend
+
+      - name: Scan image for Critical CVEs with a published fix
+        # PINNED v0.36.0 — latest release.
+        # Source: https://github.com/aquasecurity/trivy-action/releases
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ai-job-matcher-backend:${{ github.sha }}
+          severity: CRITICAL
+          # Only fail on CVEs that have a fix available (CONTEXT.md requirement).
+          ignore-unfixed: true
+          exit-code: "1"
+          vuln-type: os,library
+          format: table
