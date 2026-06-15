@@ -171,7 +171,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        stack: [bootstrap, app]
+        stack: [bootstrap, app, grants]
     defaults:
       run:
         working-directory: infra/${{ matrix.stack }}
