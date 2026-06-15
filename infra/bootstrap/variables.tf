@@ -57,3 +57,22 @@ variable "state_container_name" {
   type        = string
   default     = "tfstate"
 }
+
+# ---- GitHub Actions OIDC deploy identity (Task 29) --------------------------
+
+variable "github_repository" {
+  description = "GitHub repository in 'owner/name' form. Scopes the OIDC federated credential subject so only this repo can assume the deploy identity."
+  type        = string
+  default     = "DNBLabs/ai-job-matcher-and-cv-analyzer"
+
+  validation {
+    condition     = can(regex("^[^/\\s]+/[^/\\s]+$", var.github_repository))
+    error_message = "github_repository must be in 'owner/name' form."
+  }
+}
+
+variable "github_deploy_branch" {
+  description = "Branch the deploy workflow runs on. The federated credential trusts only this branch (CONTEXT.md §Supply chain: prod deploy on main only)."
+  type        = string
+  default     = "main"
+}

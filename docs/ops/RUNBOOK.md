@@ -1,14 +1,50 @@
 # Operations Runbook
 
-Out-of-band setup and incident-response steps that are not expressed in
-Terraform. Run once per environment after `terraform apply` of the application
-stack (Task 26).
+Out-of-band setup and incident-response steps. Most of the post-`terraform apply`
+toil is now automated by the deploy pipeline (Task 29 / ADR-0006); what remains
+below is genuinely one-time (IAM/trust bootstrap) or has no OIDC-compatible path.
 
-## 1. Set real Key Vault secret values
+## 0. One-time deploy bootstrap (per environment)
+
+The deploy identity and GitHub secrets are set up once, by the operator.
+
+1. **Apply the bootstrap stack** (`infra/bootstrap`) with `az login`. Besides the
+   remote-state storage, it now creates the GitHub Actions **OIDC deploy
+   identity**: an Entra app + service principal + a federated credential trusting
+   only this repo on `main`, with Contributor + User Access Administrator +
+   AcrPush + Storage Blob Data Owner. No client secret exists.
+
+2. **Set GitHub Actions repository secrets** (Settings → Secrets and variables →
+   Actions). From the bootstrap outputs:
+
+   | GitHub secret | Source |
+   |---|---|
+   | `AZURE_CLIENT_ID` | `terraform output -raw deploy_client_id` |
+   | `AZURE_TENANT_ID` | `terraform output -raw tenant_id` |
+   | `AZURE_SUBSCRIPTION_ID` | `terraform output -raw subscription_id` |
+   | `TFSTATE_STORAGE_ACCOUNT` | `terraform output -raw storage_account_name` |
+   | `OWNER_EMAIL` | operator email (feeds the `owner` tag) |
+   | `GOOGLE_OAUTH_CLIENT_SECRET` | Google Cloud console (one-time seed) |
+   | `OPENAI_API_KEY` | OpenAI dashboard (one-time seed) |
+   | `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | Adzuna developer portal (one-time seed) |
+
+   The five secret *values* (OAuth/OpenAI/Adzuna) originate from third parties —
+   seeding them into GitHub once is unavoidable. The pipeline syncs them into Key
+   Vault on every deploy (skipping any that are unset).
+
+3. **Apply the Mail.Send grant** (`infra/grants`) once with `az login`, after the
+   app stack exists — see §2a.
+
+4. **Apply the Exchange Application Access Policy** once — see §2b.
+
+After this, merges to `main` deploy with no manual steps.
+
+## 1. Key Vault secret values (now automated)
 
 Terraform creates placeholder secrets so per-secret RBAC scopes exist
-(`infra/app/keyvault.tf`); the real values are set out-of-band so they never
-enter Terraform state or git:
+(`infra/app/keyvault.tf`); the **deploy pipeline** sets the real values from the
+GitHub secrets in §0 (`az keyvault secret set`), so they never enter Terraform
+state or git. Manual fallback if deploying outside the pipeline:
 
 ```bash
 KV=$(terraform -chdir=infra/app output -raw key_vault_name)
@@ -23,26 +59,23 @@ The `database-password` secret is generated and owned by Terraform — do not se
 ## 2. Grant + constrain Microsoft Graph `Mail.Send` (transactional email)
 
 Email is sent from `noreply@dnblabs.co.uk` via Graph `sendMail`, authenticated
-by the API and Worker Managed Identities (ADR-0005). Two things must be done by
-an Azure AD / Exchange administrator; neither has a Terraform resource.
+by the API and Worker Managed Identities (ADR-0005). The grant is now IaC; the
+Exchange constraint remains a manual admin step (no OIDC path — ADR-0006).
 
-### 2a. Grant the `Mail.Send` application role to both MIs
+### 2a. Grant the `Mail.Send` application role to both MIs (IaC, one-time)
+
+Applied once by the operator, off the routine deploy pipeline so the pipeline
+never needs tenant-wide `AppRoleAssignment.ReadWrite.All` (ADR-0006):
 
 ```bash
-GRAPH_APP_ID=00000003-0000-0000-c000-000000000000   # Microsoft Graph
-GRAPH_SP_ID=$(az ad sp show --id "$GRAPH_APP_ID" --query id -o tsv)
-MAIL_SEND_ROLE_ID=$(az ad sp show --id "$GRAPH_APP_ID" \
-  --query "appRoles[?value=='Mail.Send'].id | [0]" -o tsv)
-
-API_MI=$(terraform -chdir=infra/app output -raw api_identity_principal_id)
-WORKER_MI=$(terraform -chdir=infra/app output -raw worker_identity_principal_id)
-
-for MI in "$API_MI" "$WORKER_MI"; do
-  az rest --method POST \
-    --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$MI/appRoleAssignments" \
-    --body "{\"principalId\":\"$MI\",\"resourceId\":\"$GRAPH_SP_ID\",\"appRoleId\":\"$MAIL_SEND_ROLE_ID\"}"
-done
+export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+cd infra/grants
+terraform init
+terraform apply   # az login identity must hold Application Administrator
 ```
+
+This creates the `azuread_app_role_assignment` (Mail.Send) for both managed
+identities. Re-running is idempotent.
 
 ### 2b. Constrain the grant to ONLY the shared mailbox (mandatory)
 
