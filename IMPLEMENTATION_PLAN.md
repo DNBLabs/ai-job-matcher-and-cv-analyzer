@@ -159,7 +159,7 @@ Repo scaffold + Docker Compose
 - [x] Task 26: Terraform application stack (ACA, Postgres, SB, Blob, KV, ACR)
 - [x] Task 27: Azure adapters (Blob, Service Bus, Key Vault) and MI wiring — `AzureBlobStore` (MI, shared `BlobServiceBlobStore` base with Azurite), `ServiceBusJobQueue` (MI send/receive, drain-to-exit consume), `KeyVaultSecretProvider` (MI, env→kebab name map), `GraphApiNotificationPort` (M365 `sendMail` via MI; Resend removed); factory + Settings wired by env (`azure`/`servicebus`/`keyvault`/`graph`); 27 mocked-SDK contract tests; Terraform `EMAIL_FROM`/`NOTIFICATION_BACKEND=graph` on both apps + MI principal-id outputs; ADR-0005 + `docs/ops/RUNBOOK.md` (out-of-band Mail.Send + Application Access Policy)
 - [x] Task 28: GitHub Actions — PR gates (lint, test, validate, CVE scan) — `ci.yml` already covered pytest (ephemeral Postgres), frontend lint/test/build/`npm audit`, `terraform validate`, `docker compose build`, and pip/npm caching; this task added the `cve-scan` job (Trivy `@v0.36.0`, `severity=CRITICAL` + `ignore-unfixed` + `exit-code=1`) scanning the shared backend image to fail on Critical container CVEs with a published fix (#38)
-- [ ] Task 29: GitHub Actions — prod deploy (OIDC, SHA tags, terraform apply)
+- [x] Task 29: GitHub Actions — prod deploy (OIDC, SHA tags, terraform apply) — `deploy.yml` (workflow_run CI-gate + dispatch rollback, OIDC-only, SHA build/push, terraform apply, KV secret sync w/ runner-IP allow, revision pin, `/health` smoke); bootstrap `deploy_identity.tf` (federated cred repo+main, Contributor+UAA+AcrPush+state-blob); one-time `infra/grants` Mail.Send stack; ADR-0006 + RUNBOOK §0/§2a. Live prod deploy verification is operator-only (no target)
 - [ ] Task 30: Observability and FinOps alerts (Log Analytics, budgets)
 
 #### Checkpoint: Production
@@ -861,21 +861,23 @@ Repo scaffold + Docker Compose
 **Description:** Deploy workflow on `main` only: OIDC to Azure, build/push SHA-tagged images to ACR, `terraform apply`, update ACA revisions to new SHA. No `:latest` in prod. Immutable tags.
 
 **Acceptance criteria:**
-- [ ] OIDC federated credential scoped to repo + main branch
-- [ ] Images tagged with git SHA
-- [ ] ACA revisions pin to SHA tag after apply
-- [ ] Workflow requires successful PR checks
+- [x] OIDC federated credential scoped to repo + main branch — `infra/bootstrap/deploy_identity.tf`: `azuread_application_federated_identity_credential` subject `repo:DNBLabs/ai-job-matcher-and-cv-analyzer:ref:refs/heads/main`, no client secret
+- [x] Images tagged with git SHA — `deploy.yml` builds/pushes `backend:<sha>` (workflow_run head_sha / dispatch input); never `:latest`
+- [x] ACA revisions pin to SHA tag after apply — `az containerapp update --image <acr>/backend:<sha>` for API + worker (Single revision mode)
+- [x] Workflow requires successful PR checks — `workflow_run` on CI completion, job guard `conclusion == 'success'`; branch protection on `main`
 
 **Verification:**
-- [ ] Deploy to prod subscription; verify revision SHA matches commit
-- [ ] Rollback procedure documented (redeploy prior SHA)
+- [ ] Deploy to prod subscription; verify revision SHA matches commit — operator-only (Phase H; needs a live subscription + seeded GitHub secrets). Locally validated: `terraform fmt/validate` (bootstrap, app, grants) + `actionlint` deploy.yml all green
+- [x] Rollback procedure documented (redeploy prior SHA) — ADR-0006 §Rollback + `workflow_dispatch` `image_sha` input
 
 **Dependencies:** Task 26, Task 27, Task 28
 
 **Files likely touched:**
-- `.github/workflows/deploy.yml`
+- `.github/workflows/deploy.yml`, `infra/bootstrap/deploy_identity.tf`, `infra/grants/*`, `docs/adr/0006-zero-touch-deploy-oidc.md`, `docs/ops/RUNBOOK.md`
 
 **Estimated scope:** Medium
+
+**Decision (2026-06-15):** Zero-touch the *application release* only; one-time IAM (Graph `Mail.Send` grant, Exchange Application Access Policy) stays separately-applied IaC / documented admin steps so the per-merge pipeline never holds tenant-admin Graph permissions (ADR-0006). Exchange policy cannot be OIDC-automated (needs a long-lived cert) — kept manual to honor the OIDC-only guardrail.
 
 ---
 

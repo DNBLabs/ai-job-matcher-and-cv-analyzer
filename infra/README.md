@@ -1,11 +1,12 @@
 # Terraform infrastructure-as-code (Azure)
 
-Two stacks:
+Three stacks:
 
 | Stack | Path | Backend | Purpose |
 |-------|------|---------|---------|
-| **Bootstrap** | `infra/bootstrap/` | local | Creates the remote-state storage the app stack uses (Task 25). |
+| **Bootstrap** | `infra/bootstrap/` | local | Remote-state storage (Task 25) **+ the GitHub Actions OIDC deploy identity** (Task 29). |
 | **Application** | `infra/app/` | azurerm (remote) | ACA, Postgres, Service Bus, Blob, Key Vault, ACR (Task 26). |
+| **Grants** | `infra/grants/` | local | One-time Graph `Mail.Send` grant for the API + worker MIs (Task 29). Applied once, after the app stack. |
 
 All resources carry the FinOps-mandated tags: `project`, `env`, `owner`, `cost-center`
 (CONTEXT.md §Tagging, `docs/finance/BUDGET.md`). Default region: `uksouth`.
@@ -119,6 +120,30 @@ terraform validate
 
 `terraform plan` requires Azure credentials and is run locally by the operator
 during apply (above) — it is not part of the secret-free PR gate.
+
+## Continuous deployment (Task 29)
+
+`.github/workflows/deploy.yml` deploys on every CI-green merge to `main` and via
+manual `workflow_dispatch` (with an `image_sha` input for rollback). It
+authenticates with **OIDC only** — no Azure credential is stored in GitHub — and:
+
+1. builds one SHA-tagged backend image (API + worker share it) and pushes to ACR,
+2. `terraform apply`s the app stack,
+3. syncs Key Vault secret values from GitHub secrets,
+4. pins both Container App revisions to the SHA (`az containerapp update`),
+5. smoke-tests `/health`.
+
+The deploy identity is provisioned by the **bootstrap** stack
+(`deploy_identity.tf`); its credential trusts only this repo on `main`. One-time
+setup (GitHub secrets, the `infra/grants` apply, the Exchange policy) and the
+rollback procedure are in `docs/ops/RUNBOOK.md` §0 and ADR-0006.
+
+> **Grants stack — apply once after the app stack:**
+>
+> ```bash
+> export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+> cd infra/grants && terraform init && terraform apply
+> ```
 
 ## Teardown
 

@@ -15,6 +15,25 @@ output "container_name" {
   value       = azurerm_storage_container.tfstate.name
 }
 
+# ---- GitHub Actions OIDC deploy identity (Task 29) --------------------------
+# Set these three as GitHub Actions repository secrets (no client secret exists):
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID.
+
+output "deploy_client_id" {
+  description = "Client ID of the GitHub Actions OIDC deploy identity -> GitHub secret AZURE_CLIENT_ID."
+  value       = azuread_application_registration.deploy.client_id
+}
+
+output "tenant_id" {
+  description = "Entra tenant ID -> GitHub secret AZURE_TENANT_ID."
+  value       = data.azurerm_subscription.current.tenant_id
+}
+
+output "subscription_id" {
+  description = "Subscription ID -> GitHub secret AZURE_SUBSCRIPTION_ID."
+  value       = data.azurerm_subscription.current.subscription_id
+}
+
 # Copy-paste backend block for the application stack (infra/app/backend.tf).
 output "app_stack_backend_config" {
   description = "Backend block for the application stack. Uses Azure AD auth (no shared keys)."

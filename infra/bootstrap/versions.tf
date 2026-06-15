@@ -9,6 +9,14 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.0"
     }
+    # azuread provisions the GitHub Actions OIDC deploy identity (Task 29):
+    # app registration + federated credential + service principal. PIN ~> 3.0
+    # (v3 uses application_id, not application_object_id, on the federated cred).
+    # Source: https://github.com/hashicorp/terraform-provider-azuread/blob/main/docs/resources/application_federated_identity_credential.md
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 3.0"
+    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.0"
@@ -26,3 +34,8 @@ terraform {
 provider "azurerm" {
   features {}
 }
+
+# Authenticates with the operator's `az login` identity (Azure CLI auth), same
+# as azurerm. Creating the deploy app registration + role assignments needs
+# Application Administrator (or Owner) + role-assignment write in the tenant.
+provider "azuread" {}

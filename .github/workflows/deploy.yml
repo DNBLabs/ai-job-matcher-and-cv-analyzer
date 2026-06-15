@@ -1,0 +1,206 @@
+# Production deploy (Task 29). Zero-touch application release to Azure.
+#
+# Trigger model (CONTEXT.md §Supply chain: prod deploy on `main` only):
+#   - workflow_run: fires after the CI workflow COMPLETES on main, and the job
+#     guard requires conclusion == success -> "deploy only after PR checks pass".
+#   - workflow_dispatch: manual run; an optional image_sha rolls back to a prior
+#     SHA-tagged image without rebuilding (ADR-0006 rollback).
+#
+# Auth is OIDC only (azure/login + Terraform ARM_USE_OIDC) — no client secret or
+# long-lived Azure credential lives in GitHub. The deploy identity is created in
+# infra/bootstrap (deploy_identity.tf) and trusts only this repo on main.
+name: Deploy (prod)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_sha:
+        description: "Roll back: deploy this existing image SHA without rebuilding. Blank = build & deploy the current commit."
+        required: false
+        type: string
+
+# Serialize deploys; never cancel an in-flight apply mid-Terraform.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  id-token: write # OIDC token for azure/login + Terraform
+  contents: read
+
+jobs:
+  deploy:
+    name: Build, apply, and pin revisions
+    runs-on: ubuntu-latest
+    # Gate: only deploy when CI succeeded (workflow_run) or on a manual dispatch.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    env:
+      # Terraform azurerm/azuread OIDC auth (reads the GitHub OIDC token).
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+      ARM_USE_AZUREAD: "true"
+    steps:
+      - name: Resolve deploy SHA and build mode
+        id: resolve
+        env:
+          INPUT_SHA: ${{ github.event.inputs.image_sha }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_SHA}" ]; then
+            echo "sha=${INPUT_SHA}" >> "$GITHUB_OUTPUT"
+            echo "build=false"      >> "$GITHUB_OUTPUT"
+          elif [ "${EVENT}" = "workflow_run" ]; then
+            echo "sha=${RUN_SHA}" >> "$GITHUB_OUTPUT"
+            echo "build=true"     >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "build=true"        >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout deploy SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.resolve.outputs.sha }}
+
+      - name: Azure login (OIDC)
+        # Source: https://github.com/Azure/login (OIDC: id-token write, no secret)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Discover runner egress IP
+        id: ip
+        run: echo "ip=$(curl -fsS https://api.ipify.org)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.9"
+
+      - name: Terraform init (remote backend, Azure AD auth)
+        working-directory: infra/app
+        env:
+          TFSTATE_STORAGE_ACCOUNT: ${{ secrets.TFSTATE_STORAGE_ACCOUNT }}
+        run: |
+          terraform init -input=false \
+            -backend-config="storage_account_name=${TFSTATE_STORAGE_ACCOUNT}"
+
+      - name: Terraform apply (app stack)
+        working-directory: infra/app
+        # operator_ip_rules opens the Key Vault network ACL to this runner so the
+        # apply can create/refresh KV secret resources (data-plane). The IP is
+        # removed again in the always() cleanup step below.
+        env:
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          RUNNER_IP: ${{ steps.ip.outputs.ip }}
+        run: |
+          terraform apply -auto-approve -input=false \
+            -var "owner_email=${OWNER_EMAIL}" \
+            -var "operator_ip_rules=[\"${RUNNER_IP}/32\"]"
+
+      - name: Read stack outputs
+        id: tf
+        working-directory: infra/app
+        run: |
+          {
+            echo "acr=$(terraform output -raw acr_login_server)"
+            echo "rg=$(terraform output -raw resource_group_name)"
+            echo "api_app=$(terraform output -raw api_app_name)"
+            echo "worker_app=$(terraform output -raw worker_app_name)"
+            echo "kv=$(terraform output -raw key_vault_name)"
+            echo "api_fqdn=$(terraform output -raw api_fqdn)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Sync Key Vault secret values from GitHub secrets
+        # Origination of third-party API keys is a one-time human seed into GitHub
+        # secrets (memory: task29-zero-touch-deploy). Empty secrets are skipped so
+        # a missing GitHub secret never overwrites a real Key Vault value.
+        env:
+          KV: ${{ steps.tf.outputs.kv }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+        run: |
+          set -euo pipefail
+          sync() {
+            local name="$1" val="$2"
+            if [ -n "$val" ]; then
+              az keyvault secret set --vault-name "$KV" --name "$name" --value "$val" --output none
+              echo "synced $name"
+            else
+              echo "skip $name (no GitHub secret provided)"
+            fi
+          }
+          sync google-oauth-client-secret "$GOOGLE_OAUTH_CLIENT_SECRET"
+          sync openai-api-key "$OPENAI_API_KEY"
+          sync adzuna-app-id "$ADZUNA_APP_ID"
+          sync adzuna-app-key "$ADZUNA_APP_KEY"
+
+      - name: Build and push SHA-tagged image
+        # API and worker share one backend image (different start command); build
+        # once. Immutable SHA tag only — never :latest in prod (CONTEXT.md).
+        if: steps.resolve.outputs.build == 'true'
+        env:
+          ACR: ${{ steps.tf.outputs.acr }}
+          SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          set -euo pipefail
+          az acr login --name "${ACR%%.*}"
+          docker build -t "${ACR}/backend:${SHA}" ./backend
+          docker push "${ACR}/backend:${SHA}"
+
+      - name: Pin Container App revisions to the SHA image
+        # Single revision mode -> updating the image creates a new revision and
+        # shifts 100% traffic to it. Source:
+        # https://learn.microsoft.com/en-us/cli/azure/containerapp#az-containerapp-update
+        env:
+          ACR: ${{ steps.tf.outputs.acr }}
+          SHA: ${{ steps.resolve.outputs.sha }}
+          RG: ${{ steps.tf.outputs.rg }}
+          API_APP: ${{ steps.tf.outputs.api_app }}
+          WORKER_APP: ${{ steps.tf.outputs.worker_app }}
+        run: |
+          set -euo pipefail
+          # containerapp is a dynamically-installed CLI extension; install without prompting.
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          IMG="${ACR}/backend:${SHA}"
+          az containerapp update -n "${API_APP}"    -g "${RG}" --image "${IMG}" --output none
+          az containerapp update -n "${WORKER_APP}" -g "${RG}" --image "${IMG}" --output none
+          echo "Pinned ${API_APP} and ${WORKER_APP} to ${IMG}"
+
+      - name: Smoke test (API health)
+        env:
+          API_FQDN: ${{ steps.tf.outputs.api_fqdn }}
+        run: |
+          set -euo pipefail
+          # Cold start can take 30-60s (scale-to-zero); retry briefly.
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS "https://${API_FQDN}/health" >/dev/null; then
+              echo "health OK"; exit 0
+            fi
+            echo "attempt $i failed; waiting"; sleep 15
+          done
+          echo "API health check failed after retries"; exit 1
+
+      - name: Close runner IP on Key Vault
+        # Remove the temporary ACL allowance so a since-released runner IP does
+        # not retain Key Vault data-plane access between runs.
+        if: always() && steps.tf.outputs.kv != ''
+        env:
+          KV: ${{ steps.tf.outputs.kv }}
+          RUNNER_IP: ${{ steps.ip.outputs.ip }}
+        run: |
+          az keyvault network-rule remove --name "${KV}" --ip-address "${RUNNER_IP}/32" --output none || true
