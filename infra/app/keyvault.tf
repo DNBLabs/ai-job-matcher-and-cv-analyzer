@@ -42,6 +42,7 @@ resource "azurerm_role_assignment" "deployer_secrets_officer" {
 
 locals {
   placeholder_secrets = {
+    "google-oauth-client-id"     = "owner:api"
     "google-oauth-client-secret" = "owner:api"
     "openai-api-key"             = "owner:worker"
     "adzuna-app-id"              = "owner:worker"
