@@ -24,6 +24,17 @@ resource "azurerm_subnet" "aca" {
   # Service endpoints let the ACA subnet reach Key Vault and Storage over the
   # backbone; Key Vault is locked to this subnet via network ACLs (keyvault.tf).
   service_endpoints = ["Microsoft.KeyVault", "Microsoft.Storage"]
+
+  # A VNet-integrated Container App Environment requires its infrastructure
+  # subnet to be delegated to Microsoft.App/environments.
+  # Source: https://learn.microsoft.com/en-us/azure/container-apps/networking
+  delegation {
+    name = "aca-delegation"
+    service_delegation {
+      name    = "Microsoft.App/environments"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+    }
+  }
 }
 
 resource "azurerm_subnet" "private_endpoints" {
