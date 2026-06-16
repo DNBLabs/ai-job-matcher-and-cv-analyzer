@@ -53,21 +53,8 @@ resource "azurerm_subnet" "postgres" {
 }
 
 # ---- Private DNS zones -------------------------------------------------------
-
-# Blob private endpoint resolution.
-resource "azurerm_private_dns_zone" "blob" {
-  name                = "privatelink.blob.core.windows.net"
-  resource_group_name = azurerm_resource_group.main.name
-  tags                = local.common_tags
-}
-
-resource "azurerm_private_dns_zone_virtual_network_link" "blob" {
-  name                  = "blob-link"
-  resource_group_name   = azurerm_resource_group.main.name
-  private_dns_zone_name = azurerm_private_dns_zone.blob.name
-  virtual_network_id    = azurerm_virtual_network.main.id
-  tags                  = local.common_tags
-}
+# Blob no longer uses a private endpoint (service endpoint + ACL instead; see
+# storage.tf / ADR-0007), so no privatelink.blob DNS zone is needed.
 
 # Postgres Flexible Server private DNS (zone name must end with this suffix).
 resource "azurerm_private_dns_zone" "postgres" {
