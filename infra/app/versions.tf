@@ -42,6 +42,9 @@ provider "azurerm" {
       recover_soft_deleted_key_vaults = true
     }
   }
+  # Blob storage disables shared keys (storage.tf), so the provider must use
+  # Azure AD for blob data-plane calls (post-create poll, container management).
+  storage_use_azuread = true
 }
 
 provider "random" {}

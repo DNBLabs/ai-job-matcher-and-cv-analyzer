@@ -31,8 +31,13 @@ terraform {
 
 # subscription_id is supplied via the ARM_SUBSCRIPTION_ID environment variable
 # (required by azurerm v4). `terraform validate` does not need it; `apply` does.
+# storage_use_azuread: the state storage account disables shared keys
+# (shared_access_key_enabled = false), so the provider must use Azure AD for
+# blob data-plane calls (e.g. post-create polling, container creation) — without
+# this, apply fails with 403 KeyBasedAuthenticationNotPermitted.
 provider "azurerm" {
   features {}
+  storage_use_azuread = true
 }
 
 # Authenticates with the operator's `az login` identity (Azure CLI auth), same
