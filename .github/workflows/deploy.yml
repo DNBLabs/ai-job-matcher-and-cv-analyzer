@@ -97,11 +97,35 @@ jobs:
           terraform init -input=false \
             -backend-config="storage_account_name=${TFSTATE_STORAGE_ACCOUNT}"
 
+      - name: Open Key Vault and Storage firewalls to this runner
+        # Terraform's azurerm provider reads Key Vault secret VALUES during the
+        # refresh phase, before apply can update the ACL. operator_ip_rules alone
+        # is too late on a second run (the ACL still holds the prior runner's IP),
+        # so pre-add this runner's IP via the management plane. On the first-ever
+        # run the resources don't exist yet (|| true) and operator_ip_rules seeds
+        # the IP at create time. Resource group name is deterministic.
+        env:
+          RUNNER_IP: ${{ steps.ip.outputs.ip }}
+          RG: rg-ai-job-matcher-prod
+        run: |
+          KV=$(az keyvault list -g "$RG" --query "[0].name" -o tsv 2>/dev/null || true)
+          SA=$(az storage account list -g "$RG" --query "[0].name" -o tsv 2>/dev/null || true)
+          if [ -n "$KV" ]; then
+            az keyvault network-rule add --name "$KV" --ip-address "${RUNNER_IP}" --output none || true
+            echo "opened KV $KV to ${RUNNER_IP}"
+          fi
+          if [ -n "$SA" ]; then
+            az storage account network-rule add --account-name "$SA" -g "$RG" --ip-address "${RUNNER_IP}" --output none || true
+            echo "opened SA $SA to ${RUNNER_IP}"
+          fi
+          # KV/Storage firewall changes take a few seconds to propagate.
+          [ -n "$KV$SA" ] && sleep 20 || true
+
       - name: Terraform apply (app stack)
         working-directory: infra/app
-        # operator_ip_rules opens the Key Vault network ACL to this runner so the
-        # apply can create/refresh KV secret resources (data-plane). The IP is
-        # removed again in the always() cleanup step below.
+        # operator_ip_rules keeps this runner's IP in the Key Vault + Storage ACLs
+        # as Terraform's desired state (so apply does not strip the rule added
+        # above). The IP is removed again in the always() cleanup step below.
         env:
           OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
           RUNNER_IP: ${{ steps.ip.outputs.ip }}
@@ -195,12 +219,16 @@ jobs:
           done
           echo "API health check failed after retries"; exit 1
 
-      - name: Close runner IP on Key Vault
+      - name: Close runner IP on Key Vault and Storage
         # Remove the temporary ACL allowance so a since-released runner IP does
-        # not retain Key Vault data-plane access between runs.
-        if: always() && steps.tf.outputs.kv != ''
+        # not retain data-plane access between runs. Resolve names from the RG so
+        # cleanup works even when an earlier step failed (tf outputs unset).
+        if: always() && steps.ip.outputs.ip != ''
         env:
-          KV: ${{ steps.tf.outputs.kv }}
           RUNNER_IP: ${{ steps.ip.outputs.ip }}
+          RG: rg-ai-job-matcher-prod
         run: |
-          az keyvault network-rule remove --name "${KV}" --ip-address "${RUNNER_IP}/32" --output none || true
+          KV=$(az keyvault list -g "$RG" --query "[0].name" -o tsv 2>/dev/null || true)
+          SA=$(az storage account list -g "$RG" --query "[0].name" -o tsv 2>/dev/null || true)
+          [ -n "$KV" ] && az keyvault network-rule remove --name "$KV" --ip-address "${RUNNER_IP}" --output none || true
+          [ -n "$SA" ] && az storage account network-rule remove --account-name "$SA" -g "$RG" --ip-address "${RUNNER_IP}" --output none || true
