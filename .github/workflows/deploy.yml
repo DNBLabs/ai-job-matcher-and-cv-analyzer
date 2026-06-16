@@ -211,8 +211,10 @@ jobs:
         run: |
           set -euo pipefail
           # Cold start can take 30-60s (scale-to-zero); retry briefly.
-          for i in 1 2 3 4 5 6; do
-            if curl -fsS "https://${API_FQDN}/health" >/dev/null; then
+          # --max-time bounds each attempt so a never-healthy ingress can't hang
+          # the job (the ACA ingress holds the connection while activating).
+          for i in 1 2 3 4 5 6 7 8; do
+            if curl -fsS --max-time 15 "https://${API_FQDN}/health" >/dev/null; then
               echo "health OK"; exit 0
             fi
             echo "attempt $i failed; waiting"; sleep 15
