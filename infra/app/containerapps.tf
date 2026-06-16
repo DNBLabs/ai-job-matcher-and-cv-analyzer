@@ -29,6 +29,13 @@ locals {
   # frontend_base_url once a real frontend is deployed.
   api_public_url = "https://ca-${var.project}-api.${azurerm_container_app_environment.main.default_domain}"
   frontend_url   = var.frontend_base_url != "" ? var.frontend_base_url : local.api_public_url
+
+  # Full SQLAlchemy URL. Nothing assembles one from POSTGRES_* parts, and both the
+  # app (settings.database_url) and Alembic (env DATABASE_URL) need it; otherwise
+  # they fall back to the localhost default. Password is URL-encoded (special
+  # chars) and Azure PG requires TLS. Carried as a secret (it embeds the password,
+  # already in state per database.tf).
+  database_url = "postgresql+psycopg://${var.postgres_administrator_login}:${urlencode(random_password.postgres_admin.result)}@${azurerm_postgresql_flexible_server.main.fqdn}:5432/${azurerm_postgresql_flexible_server_database.app.name}?sslmode=require"
 }
 
 resource "azurerm_container_app_environment" "main" {
@@ -73,6 +80,10 @@ resource "azurerm_container_app" "api" {
     key_vault_secret_id = azurerm_key_vault_secret.placeholders["google-oauth-client-secret"].versionless_id
     identity            = azurerm_user_assigned_identity.api.id
   }
+  secret {
+    name  = "database-url"
+    value = local.database_url
+  }
 
   ingress {
     external_enabled = true
@@ -98,6 +109,10 @@ resource "azurerm_container_app" "api" {
       env {
         name  = "APP_ENV"
         value = "production"
+      }
+      env {
+        name        = "DATABASE_URL"
+        secret_name = "database-url"
       }
       env {
         name  = "ALLOWED_ORIGINS"
@@ -226,6 +241,10 @@ resource "azurerm_container_app" "worker" {
     identity            = azurerm_user_assigned_identity.worker.id
   }
   secret {
+    name  = "database-url"
+    value = local.database_url
+  }
+  secret {
     name                = "openai-api-key"
     key_vault_secret_id = azurerm_key_vault_secret.placeholders["openai-api-key"].versionless_id
     identity            = azurerm_user_assigned_identity.worker.id
@@ -263,6 +282,10 @@ resource "azurerm_container_app" "worker" {
       env {
         name  = "APP_ENV"
         value = "production"
+      }
+      env {
+        name        = "DATABASE_URL"
+        secret_name = "database-url"
       }
       # Worker builds run-completion email deep links from this origin.
       env {
