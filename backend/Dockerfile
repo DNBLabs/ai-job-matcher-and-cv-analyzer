@@ -13,6 +13,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY pyproject.toml README.md ./
 COPY app ./app
 COPY worker ./worker
+# Alembic config + migration scripts so `alembic upgrade head` can run inside the
+# container (prod Postgres is VNet-private; migrations run via `az containerapp
+# exec`, see docs/ops/RUNBOOK.md).
+COPY alembic.ini ./
+COPY alembic ./alembic
 
 RUN pip install --upgrade pip \
     && pip install .

@@ -103,6 +103,18 @@ Test-ApplicationAccessPolicy -Identity someone-else@dnblabs.co.uk -AppId <api-mi
 - Confirm app-only `sendMail` to the shared mailbox does not require a per-mailbox
   licence.
 
+## 2d. Database migrations (after the first deploy / on schema changes)
+
+Prod Postgres is VNet-private, so migrations run **inside** a container (which is
+on the VNet). The backend image ships `alembic.ini` + `alembic/`:
+
+```bash
+az containerapp exec -n ca-ai-job-matcher-api -g rg-ai-job-matcher-prod \
+  --command "alembic upgrade head"
+```
+
+Run once after the first successful deploy, and after any migration is added.
+
 ## 3. Incident response
 
 See `docs/security/THREAT_MODEL.md` §8 for OpenAI key compromise, session
