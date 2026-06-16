@@ -171,8 +171,8 @@ def apply_oauth_state_cookie(response: Response, state: str, settings: Settings)
         value=state,
         max_age=OAUTH_STATE_MAX_AGE_SECONDS,
         httponly=True,
-        secure=settings.is_production,
-        samesite="lax",
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
         path="/",
     )
 
@@ -187,9 +187,9 @@ def clear_oauth_state_cookie(response: Response, settings: Settings) -> None:
     response.delete_cookie(
         key=OAUTH_STATE_COOKIE,
         path="/",
-        secure=settings.is_production,
+        secure=settings.cookie_secure,
         httponly=True,
-        samesite="lax",
+        samesite=settings.cookie_samesite,
     )
 
 

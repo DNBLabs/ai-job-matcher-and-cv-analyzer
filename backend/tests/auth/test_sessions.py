@@ -152,7 +152,11 @@ def test_cleanup_expired_sessions_removes_stale_rows(db_session: Session) -> Non
 
 
 def test_session_cookie_uses_required_security_attributes(auth_settings) -> None:
-    """Session cookies are HttpOnly, SameSite=Lax, and Secure in production."""
+    """Session cookies are HttpOnly + SameSite=Lax in dev, SameSite=None; Secure in prod.
+
+    Production serves the SPA from a separate Static Web App origin, so the session
+    cookie must be cross-site (SameSite=None) and therefore Secure (ADR-0008).
+    """
     from starlette.responses import JSONResponse
 
     response = JSONResponse(content={"status": "ok"})
@@ -168,6 +172,8 @@ def test_session_cookie_uses_required_security_attributes(auth_settings) -> None
     apply_session_cookie(production_response, "session-token-value", production_settings)
     production_cookie = production_response.headers.get("set-cookie", "")
 
+    assert "samesite=none" in production_cookie.lower()
+    # SameSite=None is only honoured by browsers when the cookie is also Secure.
     assert "Secure" in production_cookie
     assert SESSION_COOKIE_NAME in production_cookie
 

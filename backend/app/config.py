@@ -128,6 +128,25 @@ class Settings(BaseSettings):
         return self.app_env.lower() == "production"
 
     @property
+    def cookie_samesite(self) -> str:
+        """Return the SameSite attribute for auth cookies.
+
+        Production serves the SPA from a separate Static Web App origin, so auth
+        cookies cross sites and must be ``None`` to be sent on credentialed
+        cross-site requests. Local/dev stays on ``Lax`` (ADR-0008).
+        """
+        return "none" if self.is_production else "lax"
+
+    @property
+    def cookie_secure(self) -> bool:
+        """Return whether auth cookies set the Secure flag.
+
+        Always Secure in production; browsers reject ``SameSite=None`` cookies
+        that are not also Secure, so the two attributes move together.
+        """
+        return self.is_production
+
+    @property
     def cors_origins(self) -> list[str]:
         """Return parsed CORS origins for middleware configuration."""
         if not self.allowed_origins:

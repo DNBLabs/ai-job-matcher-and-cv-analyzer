@@ -45,6 +45,17 @@ output "worker_identity_client_id" {
   value       = azurerm_user_assigned_identity.worker.client_id
 }
 
+output "static_web_app_default_host_name" {
+  description = "Public hostname of the Static Web App serving the SPA (the user-facing site origin)."
+  value       = azurerm_static_web_app.frontend.default_host_name
+}
+
+output "static_web_app_api_key" {
+  description = "Deployment token for the Static Web App, consumed by the frontend SWA deploy job (Azure/static-web-apps-deploy)."
+  value       = azurerm_static_web_app.frontend.api_key
+  sensitive   = true
+}
+
 output "api_identity_principal_id" {
   description = "Object (principal) ID of the API MI — target for the out-of-band Graph Mail.Send grant (docs/ops/RUNBOOK.md)."
   value       = azurerm_user_assigned_identity.api.principal_id

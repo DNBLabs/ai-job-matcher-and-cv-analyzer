@@ -11,21 +11,22 @@ SESSION_COOKIE_NAME = "session_id"
 def apply_session_cookie(response: Response, session_id: str, settings: Settings) -> None:
     """Attach the HttpOnly session cookie to an outgoing response.
 
-    Cookie attributes follow the security posture: HttpOnly, SameSite=Lax, and
-    Secure in production. Source: https://fastapi.tiangolo.com/advanced/response-cookies/
+    Cookie attributes follow the security posture: HttpOnly always; SameSite=Lax +
+    insecure in dev, SameSite=None + Secure in production (cross-origin SPA, ADR-0008).
+    Source: https://fastapi.tiangolo.com/advanced/response-cookies/
 
     Args:
         response: Outgoing Starlette/FastAPI response.
         session_id: Opaque server-side session identifier.
-        settings: Runtime configuration controlling Secure flag behavior.
+        settings: Runtime configuration controlling SameSite/Secure behavior.
     """
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=session_id,
         max_age=int(SESSION_ABSOLUTE_TIMEOUT.total_seconds()),
         httponly=True,
-        secure=settings.is_production,
-        samesite="lax",
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
         path="/",
     )
 
@@ -40,7 +41,7 @@ def clear_session_cookie(response: Response, settings: Settings) -> None:
     response.delete_cookie(
         key=SESSION_COOKIE_NAME,
         path="/",
-        secure=settings.is_production,
+        secure=settings.cookie_secure,
         httponly=True,
-        samesite="lax",
+        samesite=settings.cookie_samesite,
     )
