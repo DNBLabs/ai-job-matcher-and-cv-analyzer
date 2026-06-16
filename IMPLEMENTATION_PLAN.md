@@ -160,7 +160,8 @@ Repo scaffold + Docker Compose
 - [x] Task 27: Azure adapters (Blob, Service Bus, Key Vault) and MI wiring — `AzureBlobStore` (MI, shared `BlobServiceBlobStore` base with Azurite), `ServiceBusJobQueue` (MI send/receive, drain-to-exit consume), `KeyVaultSecretProvider` (MI, env→kebab name map), `GraphApiNotificationPort` (M365 `sendMail` via MI; Resend removed); factory + Settings wired by env (`azure`/`servicebus`/`keyvault`/`graph`); 27 mocked-SDK contract tests; Terraform `EMAIL_FROM`/`NOTIFICATION_BACKEND=graph` on both apps + MI principal-id outputs; ADR-0005 + `docs/ops/RUNBOOK.md` (out-of-band Mail.Send + Application Access Policy)
 - [x] Task 28: GitHub Actions — PR gates (lint, test, validate, CVE scan) — `ci.yml` already covered pytest (ephemeral Postgres), frontend lint/test/build/`npm audit`, `terraform validate`, `docker compose build`, and pip/npm caching; this task added the `cve-scan` job (Trivy `@v0.36.0`, `severity=CRITICAL` + `ignore-unfixed` + `exit-code=1`) scanning the shared backend image to fail on Critical container CVEs with a published fix (#38)
 - [x] Task 29: GitHub Actions — prod deploy (OIDC, SHA tags, terraform apply) — `deploy.yml` (workflow_run CI-gate + dispatch rollback, OIDC-only, SHA build/push, terraform apply, KV secret sync w/ runner-IP allow, revision pin, `/health` smoke); bootstrap `deploy_identity.tf` (federated cred repo+main, Contributor+UAA+AcrPush+state-blob); one-time `infra/grants` Mail.Send stack; ADR-0006 + RUNBOOK §0/§2a. Live prod deploy verification is operator-only (no target)
-- [ ] Task 30: Observability and FinOps alerts (Log Analytics, budgets)
+- [ ] Task 30: Production SPA serving (Azure Static Web App) — host the built SPA on a Free-SKU Azure Static Web App, separate from the API; cross-origin auth (`SameSite=None; Secure` cookies + locked-down CORS), frontend deploy via GitHub Actions; resolves the SPA-serving open question (ADR-0008)
+- [ ] Task 31: Observability and FinOps alerts (Log Analytics, budgets)
 
 #### Checkpoint: Production
 - [ ] Deploy from `main` succeeds; API and worker reachable in Azure
@@ -881,7 +882,37 @@ Repo scaffold + Docker Compose
 
 ---
 
-## Task 30: Observability and FinOps alerts (Log Analytics, budgets)
+## Task 30: Production SPA serving (Azure Static Web App)
+
+**Description:** Host the built React/Vite SPA on a dedicated **Azure Static Web App** (Free SKU), separate from the API Container App, resolving the "SPA serving" open question (**ADR-0008**). Wire cross-origin auth and CORS so sign-in works from the SWA against the API: production session/OAuth-state cookies become `SameSite=None; Secure`, the API restricts credentialed CORS to the SWA origin, and the frontend is built with `VITE_API_BASE_URL` = the API's public URL and deployed via GitHub Actions. The API's existing live URL keeps serving the JSON API; the SWA becomes the user-facing site.
+
+**Acceptance criteria:**
+- [ ] `azurerm_static_web_app` (Free SKU) provisioned in `infra/app` with FinOps tags
+- [ ] Frontend built with `VITE_API_BASE_URL` = API public URL and deployed to the SWA via GitHub Actions (`Azure/static-web-apps-deploy`, token from SWA)
+- [ ] API credentialed CORS restricted to the SWA origin (`ALLOWED_ORIGINS`)
+- [ ] Session + OAuth-state cookies use `SameSite=None; Secure` in production, `Lax` in dev; sign-in persists across the cross-origin boundary
+- [ ] Google OAuth callback (API) + post-auth redirect (SWA) wired; Google + magic-link sign-in complete end-to-end
+- [ ] Run-complete email deep links point to the SWA origin (`FRONTEND_BASE_URL`)
+
+**Verification:**
+- [ ] SWA URL loads the SPA; client-side deep links (e.g. `/dashboard`) resolve
+- [ ] Google + magic-link sign-in works from the SWA against the live API; no CORS/cookie errors in the browser console
+- [ ] `terraform plan` shows the SWA on Free SKU (no budget impact)
+
+**Dependencies:** Task 26, Task 29
+
+**Files likely touched:**
+- `infra/app/staticwebapp.tf`, `infra/app/containerapps.tf` (ALLOWED_ORIGINS / redirect / FRONTEND_BASE_URL)
+- `backend/app/auth/*` (environment-aware cookie `SameSite`)
+- `.github/workflows/` (frontend SWA deploy), `frontend/src/config.ts`
+
+**Estimated scope:** Medium
+
+**Decision (2026-06-16):** Chose a **separate Azure Static Web App** over a same-origin FastAPI static mount — better separation of concerns, CDN edge caching, an independent frontend deploy path, and stronger architecture for the portfolio; Free SKU keeps it within budget. Trade-off: cross-origin auth requires `SameSite=None; Secure` cookies + locked-down CORS (custom shared-parent domains, which would permit `Lax`, are a deferred hardening). See **ADR-0008**.
+
+---
+
+## Task 31: Observability and FinOps alerts (Log Analytics, budgets)
 
 **Description:** Configure Log Analytics ingestion (cost-capped), Azure budget alerts at £60/£75, OpenAI daily £2 alert (manual org setup documented), Service Bus queue depth alert (>10 for 15 min). App structured logging: queue depth, 5xx, 429 rate, scrape failure rate (no PII).
 
@@ -940,7 +971,7 @@ Repo scaffold + Docker Compose
 - [ ] **Google OAuth prod domains** — Exact callback URLs for ACA ingress (known after Task 26)
 - [ ] **Admin operator email** — Confirm seed email for `is_admin` + `is_unlimited` bootstrap
 - [ ] **UK city list source** — Static JSON in repo vs external geocoding API (prefer static for cost/simplicity)
-- [ ] **SPA serving** — FastAPI static mount vs CDN on Blob (MVP: FastAPI mount is simpler)
+- [x] **SPA serving** — **Resolved 2026-06-16: dedicated Azure Static Web App (Free SKU)**, separate from the API — chosen over the same-origin FastAPI static mount for separation of concerns, CDN caching, an independent frontend deploy path, and stronger portfolio architecture. Cross-origin auth handled with `SameSite=None; Secure` cookies + credentialed CORS locked to the SWA origin (shared-parent custom domains, which would permit `Lax`, deferred). Scoped as **Task 30**; see **ADR-0008**.
 
 ---
 
