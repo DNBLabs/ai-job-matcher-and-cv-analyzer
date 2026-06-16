@@ -160,7 +160,7 @@ Repo scaffold + Docker Compose
 - [x] Task 27: Azure adapters (Blob, Service Bus, Key Vault) and MI wiring — `AzureBlobStore` (MI, shared `BlobServiceBlobStore` base with Azurite), `ServiceBusJobQueue` (MI send/receive, drain-to-exit consume), `KeyVaultSecretProvider` (MI, env→kebab name map), `GraphApiNotificationPort` (M365 `sendMail` via MI; Resend removed); factory + Settings wired by env (`azure`/`servicebus`/`keyvault`/`graph`); 27 mocked-SDK contract tests; Terraform `EMAIL_FROM`/`NOTIFICATION_BACKEND=graph` on both apps + MI principal-id outputs; ADR-0005 + `docs/ops/RUNBOOK.md` (out-of-band Mail.Send + Application Access Policy)
 - [x] Task 28: GitHub Actions — PR gates (lint, test, validate, CVE scan) — `ci.yml` already covered pytest (ephemeral Postgres), frontend lint/test/build/`npm audit`, `terraform validate`, `docker compose build`, and pip/npm caching; this task added the `cve-scan` job (Trivy `@v0.36.0`, `severity=CRITICAL` + `ignore-unfixed` + `exit-code=1`) scanning the shared backend image to fail on Critical container CVEs with a published fix (#38)
 - [x] Task 29: GitHub Actions — prod deploy (OIDC, SHA tags, terraform apply) — `deploy.yml` (workflow_run CI-gate + dispatch rollback, OIDC-only, SHA build/push, terraform apply, KV secret sync w/ runner-IP allow, revision pin, `/health` smoke); bootstrap `deploy_identity.tf` (federated cred repo+main, Contributor+UAA+AcrPush+state-blob); one-time `infra/grants` Mail.Send stack; ADR-0006 + RUNBOOK §0/§2a. Live prod deploy verification is operator-only (no target)
-- [ ] Task 30: Production SPA serving (Azure Static Web App) — host the built SPA on a Free-SKU Azure Static Web App, separate from the API; cross-origin auth (`SameSite=None; Secure` cookies + locked-down CORS), frontend deploy via GitHub Actions; resolves the SPA-serving open question (ADR-0008)
+- [x] Task 30: Production SPA serving (Azure Static Web App) — `azurerm_static_web_app` Free SKU (westeurope; uksouth unsupported) + FinOps tags in `infra/app/staticwebapp.tf`; `frontend_url` (CORS `ALLOWED_ORIGINS`, post-auth redirect, email deep links) auto-wired to the SWA hostname; environment-aware auth cookies (`SameSite=None; Secure` in prod, `Lax` in dev) via `Settings.cookie_samesite`/`cookie_secure`; `deploy.yml` builds the SPA with `VITE_API_BASE_URL`=API URL and deploys via `Azure/static-web-apps-deploy` (masked token from TF output). Live SWA + sign-in verification is operator-only (ADR-0008)
 - [ ] Task 31: Observability and FinOps alerts (Log Analytics, budgets)
 
 #### Checkpoint: Production
@@ -887,17 +887,17 @@ Repo scaffold + Docker Compose
 **Description:** Host the built React/Vite SPA on a dedicated **Azure Static Web App** (Free SKU), separate from the API Container App, resolving the "SPA serving" open question (**ADR-0008**). Wire cross-origin auth and CORS so sign-in works from the SWA against the API: production session/OAuth-state cookies become `SameSite=None; Secure`, the API restricts credentialed CORS to the SWA origin, and the frontend is built with `VITE_API_BASE_URL` = the API's public URL and deployed via GitHub Actions. The API's existing live URL keeps serving the JSON API; the SWA becomes the user-facing site.
 
 **Acceptance criteria:**
-- [ ] `azurerm_static_web_app` (Free SKU) provisioned in `infra/app` with FinOps tags
-- [ ] Frontend built with `VITE_API_BASE_URL` = API public URL and deployed to the SWA via GitHub Actions (`Azure/static-web-apps-deploy`, token from SWA)
-- [ ] API credentialed CORS restricted to the SWA origin (`ALLOWED_ORIGINS`)
-- [ ] Session + OAuth-state cookies use `SameSite=None; Secure` in production, `Lax` in dev; sign-in persists across the cross-origin boundary
-- [ ] Google OAuth callback (API) + post-auth redirect (SWA) wired; Google + magic-link sign-in complete end-to-end
-- [ ] Run-complete email deep links point to the SWA origin (`FRONTEND_BASE_URL`)
+- [x] `azurerm_static_web_app` (Free SKU) provisioned in `infra/app` with FinOps tags — `staticwebapp.tf` `swa-${name_prefix}`, `sku_tier/sku_size = "Free"`, `local.common_tags`; `westeurope` (SWA unsupported in uksouth)
+- [x] Frontend built with `VITE_API_BASE_URL` = API public URL and deployed to the SWA via GitHub Actions (`Azure/static-web-apps-deploy`, token from SWA) — `deploy.yml` setup-node → `npm ci && npm run build` (`VITE_API_BASE_URL=https://<api_fqdn>`) → `Azure/static-web-apps-deploy@v1` `action: upload`, `skip_app_build`, `app_location: frontend/dist`; token from `terraform output -raw static_web_app_api_key`, masked
+- [x] API credentialed CORS restricted to the SWA origin (`ALLOWED_ORIGINS`) — `containerapps.tf` `local.frontend_url` resolves to the SWA hostname and feeds `ALLOWED_ORIGINS`; `main.py` CORS `allow_credentials=True` with `cors_origins`
+- [x] Session + OAuth-state cookies use `SameSite=None; Secure` in production, `Lax` in dev — `Settings.cookie_samesite`/`cookie_secure`; all four cookie helpers in `auth/middleware.py` + `auth/google_oauth.py` use them; `test_sessions.py` + `test_google_oauth.py` assert both environments
+- [x] Google OAuth callback (API) + post-auth redirect (SWA) wired — `GOOGLE_OAUTH_REDIRECT_URI` stays API-side; `POST_AUTH_REDIRECT_URL = <frontend_url>/dashboard` (SWA)
+- [x] Run-complete email deep links point to the SWA origin (`FRONTEND_BASE_URL`) — worker `FRONTEND_BASE_URL = local.frontend_url` (SWA hostname)
 
 **Verification:**
-- [ ] SWA URL loads the SPA; client-side deep links (e.g. `/dashboard`) resolve
-- [ ] Google + magic-link sign-in works from the SWA against the live API; no CORS/cookie errors in the browser console
-- [ ] `terraform plan` shows the SWA on Free SKU (no budget impact)
+- [ ] SWA URL loads the SPA; client-side deep links (e.g. `/dashboard`) resolve — operator-only (needs live SWA deploy)
+- [ ] Google + magic-link sign-in works from the SWA against the live API; no CORS/cookie errors in the browser console — operator-only (Phase H)
+- [ ] `terraform plan` shows the SWA on Free SKU (no budget impact) — operator-local on apply (needs ARM creds; not in secret-free PR gate). Locally validated: `terraform fmt -check` + `validate` green; `npm run build` green; cookie tests green
 
 **Dependencies:** Task 26, Task 29
 

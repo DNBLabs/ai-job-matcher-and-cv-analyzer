@@ -23,12 +23,14 @@ locals {
   placeholder_image    = "mcr.microsoft.com/k8se/quickstart:latest"
   servicebus_namespace = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
 
-  # Public URLs. The API is reachable at <app>.<aca-env-default-domain>; until a
-  # separate frontend host exists, the SPA/redirect URLs point at the API origin
-  # so Settings' post-auth-redirect validation passes (config.py). Override
-  # frontend_base_url once a real frontend is deployed.
+  # Public URLs. The API is reachable at <app>.<aca-env-default-domain>; the SPA
+  # is served from the Static Web App (ADR-0008). frontend_url drives CORS
+  # (ALLOWED_ORIGINS), the post-auth redirect, email deep links, and Settings'
+  # redirect validation (config.py). It resolves to the explicit override if set,
+  # else the SWA's default hostname, so the cross-origin auth wiring is correct
+  # the moment the stack applies. (Pre-SWA stacks fell back to the API origin.)
   api_public_url = "https://ca-${var.project}-api.${azurerm_container_app_environment.main.default_domain}"
-  frontend_url   = var.frontend_base_url != "" ? var.frontend_base_url : local.api_public_url
+  frontend_url   = var.frontend_base_url != "" ? var.frontend_base_url : "https://${azurerm_static_web_app.frontend.default_host_name}"
 
   # Full SQLAlchemy URL. Nothing assembles one from POSTGRES_* parts, and both the
   # app (settings.database_url) and Alembic (env DATABASE_URL) need it; otherwise

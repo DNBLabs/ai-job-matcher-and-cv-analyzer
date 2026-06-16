@@ -36,6 +36,30 @@ async def test_google_login_redirects_to_google_with_state_cookie(
     assert query["state"][0] in set_cookie
 
 
+def test_oauth_state_cookie_is_cross_site_secure_in_production(auth_settings) -> None:
+    """OAuth-state cookie is SameSite=Lax in dev and SameSite=None; Secure in prod.
+
+    The Google callback redirects back to the SWA origin, so the state cookie must
+    survive the cross-site round trip in production (ADR-0008).
+    """
+    from starlette.responses import RedirectResponse
+
+    from app.auth.google_oauth import apply_oauth_state_cookie
+
+    dev_response = RedirectResponse(url="https://accounts.google.com")
+    apply_oauth_state_cookie(dev_response, "state-nonce", auth_settings)
+    dev_cookie = dev_response.headers.get("set-cookie", "")
+    assert "samesite=lax" in dev_cookie.lower()
+    assert "Secure" not in dev_cookie
+
+    prod_response = RedirectResponse(url="https://accounts.google.com")
+    prod_settings = auth_settings.model_copy(update={"app_env": "production"})
+    apply_oauth_state_cookie(prod_response, "state-nonce", prod_settings)
+    prod_cookie = prod_response.headers.get("set-cookie", "")
+    assert "samesite=none" in prod_cookie.lower()
+    assert "Secure" in prod_cookie
+
+
 @pytest.mark.asyncio
 async def test_google_callback_rejects_invalid_state_with_audit_log(
     oauth_client: AsyncClient,

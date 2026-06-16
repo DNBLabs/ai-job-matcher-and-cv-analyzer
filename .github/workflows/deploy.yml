@@ -223,6 +223,43 @@ jobs:
           done
           echo "API health check failed after retries"; exit 1
 
+      - name: Set up Node.js for the SPA build
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build SPA with the live API base URL
+        # The SPA is a separate origin (ADR-0008); VITE_API_BASE_URL bakes the
+        # API's public URL into the bundle so the browser calls the API directly.
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://${{ steps.tf.outputs.api_fqdn }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Read Static Web App deploy token
+        id: swa
+        working-directory: infra/app
+        run: |
+          set -euo pipefail
+          TOKEN=$(terraform output -raw static_web_app_api_key)
+          # Mask before exposing as a step output so it never lands in logs.
+          echo "::add-mask::${TOKEN}"
+          echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy SPA to the Static Web App
+        # Pre-built bundle upload (skip_app_build) — no Oryx build in the action.
+        # Source: https://github.com/Azure/static-web-apps-deploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa.outputs.token }}
+          action: upload
+          app_location: frontend/dist
+          skip_app_build: true
+
       - name: Close runner IP on Key Vault and Storage
         # Remove the temporary ACL allowance so a since-released runner IP does
         # not retain data-plane access between runs. Resolve names from the RG so
