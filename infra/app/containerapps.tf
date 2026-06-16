@@ -5,7 +5,13 @@
 # stays false: the API needs public HTTPS ingress; the worker has no ingress.
 
 variable "allowed_origins" {
-  description = "Comma-separated CORS origins for the API (frontend URL). Set after the frontend host is known."
+  description = "Comma-separated CORS origins for the API. Empty => defaults to the API/frontend public URL (below)."
+  type        = string
+  default     = ""
+}
+
+variable "frontend_base_url" {
+  description = "Public SPA origin (no trailing slash). Empty => use the API's own ACA URL as a placeholder until a frontend is deployed."
   type        = string
   default     = ""
 }
@@ -16,6 +22,13 @@ variable "allowed_origins" {
 locals {
   placeholder_image    = "mcr.microsoft.com/k8se/quickstart:latest"
   servicebus_namespace = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
+
+  # Public URLs. The API is reachable at <app>.<aca-env-default-domain>; until a
+  # separate frontend host exists, the SPA/redirect URLs point at the API origin
+  # so Settings' post-auth-redirect validation passes (config.py). Override
+  # frontend_base_url once a real frontend is deployed.
+  api_public_url = "https://ca-${var.project}-api.${azurerm_container_app_environment.main.default_domain}"
+  frontend_url   = var.frontend_base_url != "" ? var.frontend_base_url : local.api_public_url
 }
 
 resource "azurerm_container_app_environment" "main" {
@@ -88,7 +101,25 @@ resource "azurerm_container_app" "api" {
       }
       env {
         name  = "ALLOWED_ORIGINS"
-        value = var.allowed_origins
+        value = var.allowed_origins != "" ? var.allowed_origins : local.frontend_url
+      }
+      # Public URL wiring so Settings' post-auth-redirect validation passes and
+      # magic-link / OAuth URLs are absolute (config.py).
+      env {
+        name  = "API_BASE_URL"
+        value = local.api_public_url
+      }
+      env {
+        name  = "FRONTEND_BASE_URL"
+        value = local.frontend_url
+      }
+      env {
+        name  = "POST_AUTH_REDIRECT_URL"
+        value = "${local.frontend_url}/dashboard"
+      }
+      env {
+        name  = "GOOGLE_OAUTH_REDIRECT_URI"
+        value = "${local.api_public_url}/auth/google/callback"
       }
       env {
         name  = "AZURE_CLIENT_ID"
@@ -232,6 +263,11 @@ resource "azurerm_container_app" "worker" {
       env {
         name  = "APP_ENV"
         value = "production"
+      }
+      # Worker builds run-completion email deep links from this origin.
+      env {
+        name  = "FRONTEND_BASE_URL"
+        value = local.frontend_url
       }
       env {
         name  = "AZURE_CLIENT_ID"
