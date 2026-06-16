@@ -153,6 +153,7 @@ jobs:
         # a missing GitHub secret never overwrites a real Key Vault value.
         env:
           KV: ${{ steps.tf.outputs.kv }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
           GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
@@ -168,6 +169,7 @@ jobs:
               echo "skip $name (no GitHub secret provided)"
             fi
           }
+          sync google-oauth-client-id "$GOOGLE_OAUTH_CLIENT_ID"
           sync google-oauth-client-secret "$GOOGLE_OAUTH_CLIENT_SECRET"
           sync openai-api-key "$OPENAI_API_KEY"
           sync adzuna-app-id "$ADZUNA_APP_ID"

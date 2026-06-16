@@ -65,9 +65,15 @@ resource "azurerm_role_assignment" "worker_sb_receiver" {
 
 # ---- Key Vault: per-secret Secrets User --------------------------------------
 
-# API reads only the OAuth secret + the shared DB password.
+# API reads the Google OAuth client id + secret + the shared DB password.
 resource "azurerm_role_assignment" "api_kv_oauth" {
   scope                = azurerm_key_vault_secret.placeholders["google-oauth-client-secret"].resource_versionless_id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.api.principal_id
+}
+
+resource "azurerm_role_assignment" "api_kv_oauth_client_id" {
+  scope                = azurerm_key_vault_secret.placeholders["google-oauth-client-id"].resource_versionless_id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azurerm_user_assigned_identity.api.principal_id
 }
