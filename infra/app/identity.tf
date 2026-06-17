@@ -1,11 +1,12 @@
 # Two user-assigned managed identities with split, least-privilege access
 # (CONTEXT.md §Runtime & IAM; THREAT_MODEL.md R3/R4):
 #
-#   API MI    : Blob RW on cvs/; Service Bus send; Key Vault get OAuth+email; ACR pull
-#   Worker MI : Blob read-only on cvs/; Service Bus receive; Key Vault get OpenAI+Adzuna; ACR pull
+#   API MI    : Blob RW on cvs/; Service Bus send; Key Vault get OAuth+OpenAI+DB; ACR pull
+#   Worker MI : Blob read-only on cvs/; Service Bus receive; Key Vault get OpenAI+Adzuna+DB; ACR pull
 #
-# Key Vault access is scoped per-secret (not vault-wide) so the API cannot read
-# the worker's OpenAI/Adzuna secrets and vice versa.
+# Key Vault access is scoped per-secret (not vault-wide). OpenAI is shared: the
+# API runs the sync title-suggestion call in-process and the Worker runs scoring,
+# so both need openai-api-key. Adzuna stays Worker-only (job search runs there).
 
 resource "azurerm_user_assigned_identity" "api" {
   name                = "id-${var.project}-api"
@@ -80,6 +81,16 @@ resource "azurerm_role_assignment" "api_kv_oauth_client_id" {
 
 resource "azurerm_role_assignment" "api_kv_db" {
   scope                = azurerm_key_vault_secret.database_password.resource_versionless_id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.api.principal_id
+}
+
+# API also reads openai-api-key: the sync Suggested Job Titles call runs in the
+# API process (POST /cvs/{id}/suggest-titles -> create_llm_client). Without this
+# the API MI gets ForbiddenByRbac on getSecret and every title suggestion fails
+# (issue #52). Shared with the Worker, which uses the same key for scoring.
+resource "azurerm_role_assignment" "api_kv_openai" {
+  scope                = azurerm_key_vault_secret.placeholders["openai-api-key"].resource_versionless_id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azurerm_user_assigned_identity.api.principal_id
 }

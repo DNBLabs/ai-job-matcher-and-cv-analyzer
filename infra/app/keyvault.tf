@@ -44,7 +44,7 @@ locals {
   placeholder_secrets = {
     "google-oauth-client-id"     = "owner:api"
     "google-oauth-client-secret" = "owner:api"
-    "openai-api-key"             = "owner:worker"
+    "openai-api-key"             = "owner:api+worker"
     "adzuna-app-id"              = "owner:worker"
     "adzuna-app-key"             = "owner:worker"
   }
