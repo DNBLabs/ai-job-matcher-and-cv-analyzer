@@ -338,3 +338,70 @@ def test_fetch_retries_on_429_then_succeeds() -> None:
 
     assert len(listings) == 3
     assert mock_client.get.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# Failure reason (PII/secret-free) — logged by the worker pipeline
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_non_transient_error_sets_http_status_reason() -> None:
+    """A non-transient 403 (Cloudflare block) tags the error with reason='http_403'."""
+    first_response = MagicMock()
+    first_response.raise_for_status.side_effect = _error_response_mock(403)
+
+    mock_client = MagicMock()
+    mock_client.get.return_value = first_response
+
+    indeed = IndeedJobSource()
+    indeed._http_client = mock_client
+
+    with pytest.raises(JobSourceError) as exc_info:
+        indeed.fetch_listings(_london_search())
+
+    assert exc_info.value.reason == "http_403"
+
+
+def test_fetch_exhausted_retries_sets_reason() -> None:
+    """Exhausting all retries tags the JobSourceError with reason='exhausted_retries'."""
+    mock_client = MagicMock()
+    mock_client.get.side_effect = httpx.TimeoutException("timed out")
+
+    indeed = IndeedJobSource()
+    indeed._http_client = mock_client
+
+    with pytest.raises(JobSourceError) as exc_info:
+        indeed.fetch_listings(_london_search())
+
+    assert exc_info.value.reason == "exhausted_retries"
+
+
+def test_fetch_error_never_leaks_search_terms() -> None:
+    """The raised error must not echo the user's search query (PII-free logging).
+
+    httpx's HTTPStatusError str embeds the request URL, which carries the role
+    and location as query params. The pipeline logs this error's reason, so
+    neither the message nor the reason may echo the search terms (CONTEXT §3).
+    """
+    leaky = httpx.HTTPStatusError(
+        "Client error '403 Forbidden' for url "
+        "'https://uk.indeed.com/jobs?q=Quantum+Cryptographer+Xyz&l=London'",
+        request=MagicMock(),
+        response=MagicMock(status_code=403),
+    )
+    first_response = MagicMock()
+    first_response.raise_for_status.side_effect = leaky
+
+    mock_client = MagicMock()
+    mock_client.get.return_value = first_response
+
+    indeed = IndeedJobSource()
+    indeed._http_client = mock_client
+
+    with pytest.raises(JobSourceError) as exc_info:
+        indeed.fetch_listings(
+            JobSearch(role="Quantum Cryptographer Xyz", location="London", remote=False)
+        )
+
+    blob = f"{exc_info.value}|{exc_info.value.reason}"
+    assert "Quantum Cryptographer Xyz" not in blob
