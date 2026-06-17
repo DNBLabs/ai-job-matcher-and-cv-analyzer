@@ -1,5 +1,6 @@
 """CV HTTP routes for upload, listing, and deletion."""
 
+import logging
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
@@ -26,6 +27,8 @@ from app.services.title_suggestion_service import (
     TitleSuggestionService,
 )
 from app.validation.pdf import PdfValidationError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/cvs", tags=["cvs"])
 
@@ -209,6 +212,10 @@ async def suggest_titles(
     except CvTextUnavailableError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
     except (LlmClientError, TitleSuggestionResponseError) as error:
+        # Client sees a generic 502; operators need the real provider cause to
+        # diagnose env-specific failures (issue #52). cv_id is the correlation key;
+        # exc_info preserves the chained OpenAI/provider error in server logs only.
+        logger.warning("Title suggestion failed for cv_id=%s", cv.id, exc_info=error)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Title suggestions are temporarily unavailable",

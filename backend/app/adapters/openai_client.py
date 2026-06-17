@@ -61,7 +61,9 @@ class OpenAiLlmClient:
                 response_format=TitleSuggestionsLlmOutput,
             )
         except APIError as error:
-            raise LlmClientError("OpenAI API request failed") from error
+            raise LlmClientError(
+                f"OpenAI API request failed: {type(error).__name__}: {error}"
+            ) from error
 
         message = completion.choices[0].message
         if message.refusal:
@@ -111,7 +113,9 @@ class OpenAiLlmClient:
                 response_format=ScoringLlmOutput,
             )
         except APIError as error:
-            raise LlmClientError("OpenAI API request failed") from error
+            raise LlmClientError(
+                f"OpenAI API request failed: {type(error).__name__}: {error}"
+            ) from error
 
         message = completion.choices[0].message
         if message.refusal:
