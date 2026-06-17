@@ -305,6 +305,73 @@ def test_fetch_listings_raises_immediately_on_401_unauthorized() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Failure reason (PII/secret-free) — logged by the worker pipeline
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_listings_non_transient_error_sets_http_status_reason() -> None:
+    """A non-transient 401 tags the JobSourceError with reason='http_401'."""
+    first_response = MagicMock()
+    first_response.raise_for_status.side_effect = _error_response_mock(401)
+
+    mock_client = MagicMock()
+    mock_client.get.return_value = first_response
+
+    adzuna = AdzunaJobSource(app_id="test_id", app_key="test_key")
+    adzuna._http_client = mock_client
+
+    with pytest.raises(JobSourceError) as exc_info:
+        adzuna.fetch_listings(_london_search())
+
+    assert exc_info.value.reason == "http_401"
+
+
+def test_fetch_listings_exhausted_retries_sets_reason() -> None:
+    """Exhausting all retries tags the JobSourceError with reason='exhausted_retries'."""
+    mock_client = MagicMock()
+    mock_client.get.side_effect = httpx.TimeoutException("timed out")
+
+    adzuna = AdzunaJobSource(app_id="test_id", app_key="test_key")
+    adzuna._http_client = mock_client
+
+    with pytest.raises(JobSourceError) as exc_info:
+        adzuna.fetch_listings(_london_search())
+
+    assert exc_info.value.reason == "exhausted_retries"
+
+
+def test_fetch_listings_error_never_leaks_credentials() -> None:
+    """The raised error (message + reason) must not contain app_id/app_key.
+
+    The pipeline logs this error's reason at WARNING; httpx's HTTPStatusError str
+    embeds the full request URL, which carries the Adzuna credentials as query
+    params. Neither the message nor the reason may echo them (CONTEXT §3).
+    """
+    leaky = httpx.HTTPStatusError(
+        "Client error '401 Unauthorized' for url "
+        "'https://api.adzuna.com/v1/api/jobs/gb/search/1"
+        "?app_id=my_secret_id&app_key=my_secret_key'",
+        request=MagicMock(),
+        response=MagicMock(status_code=401),
+    )
+    first_response = MagicMock()
+    first_response.raise_for_status.side_effect = leaky
+
+    mock_client = MagicMock()
+    mock_client.get.return_value = first_response
+
+    adzuna = AdzunaJobSource(app_id="my_secret_id", app_key="my_secret_key")
+    adzuna._http_client = mock_client
+
+    with pytest.raises(JobSourceError) as exc_info:
+        adzuna.fetch_listings(_london_search())
+
+    blob = f"{exc_info.value}|{exc_info.value.reason}"
+    assert "my_secret_id" not in blob
+    assert "my_secret_key" not in blob
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 

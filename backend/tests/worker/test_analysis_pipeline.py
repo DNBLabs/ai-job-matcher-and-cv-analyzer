@@ -6,6 +6,7 @@ FinOps persistence, stable external-id dedup, and multi-source partial failure.
 """
 
 import hashlib
+import logging
 import uuid
 from datetime import UTC, datetime
 
@@ -298,6 +299,27 @@ def test_pipeline_fails_when_all_sources_fail(api_test_db_session: Session) -> N
 
     api_test_db_session.refresh(run)
     assert run.status == AnalysisRunStatus.FAILED
+
+
+def test_pipeline_logs_source_failure_reason(
+    api_test_db_session: Session, caplog
+) -> None:
+    """A failed source's PII-free reason is included in the worker WARNING log.
+
+    Diagnosability gap behind #55: the per-source failure log omitted *why* the
+    source failed, so an HTTP 401 from placeholder credentials was invisible.
+    """
+    user = _create_user(api_test_db_session)
+    cv = _create_cv(api_test_db_session, user)
+    run = _create_queued_run(api_test_db_session, user, cv)
+    source = FakeJobSource(error=JobSourceError("adzuna rejected", reason="http_401"))
+    pipeline = _pipeline(source, FakeScoringLlmClient(behaviours=[_output()]))
+
+    with caplog.at_level(logging.WARNING, logger="worker.pipeline"):
+        pipeline.run(run, api_test_db_session)
+
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert any("http_401" in m and "adzuna" in m for m in warnings)
 
 
 def test_pipeline_sends_completion_email_to_owner_on_complete(

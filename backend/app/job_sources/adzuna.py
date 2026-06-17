@@ -83,8 +83,9 @@ class AdzunaJobSource:
 
             except (httpx.TimeoutException, httpx.HTTPStatusError) as error:
                 if not self._is_transient(error):
+                    reason = self._failure_reason(error)
                     raise JobSourceError(
-                        f"Adzuna request failed with non-retryable error: {error}"
+                        f"Adzuna request failed ({reason})", reason=reason
                     ) from error
 
                 last_error = error
@@ -92,12 +93,13 @@ class AdzunaJobSource:
                     "Adzuna fetch attempt %d/%d failed (%s); %s",
                     attempt + 1,
                     _MAX_RETRIES + 1,
-                    error,
+                    self._failure_reason(error),
                     "retrying" if attempt < _MAX_RETRIES else "giving up",
                 )
 
         raise JobSourceError(
-            f"Adzuna fetch failed after {_MAX_RETRIES + 1} attempts"
+            f"Adzuna fetch failed after {_MAX_RETRIES + 1} attempts",
+            reason="exhausted_retries",
         ) from last_error
 
     # ------------------------------------------------------------------
@@ -165,3 +167,23 @@ class AdzunaJobSource:
             status = error.response.status_code
             return status == 429 or status >= 500
         return False
+
+    @staticmethod
+    def _failure_reason(error: Exception) -> str:
+        """Return a PII/secret-free reason token for a request error.
+
+        httpx error strings embed the request URL, which carries the Adzuna
+        app_id/app_key as query params — so only the exception category or HTTP
+        status (never the raw error) is safe to log (CONTEXT §3).
+
+        Args:
+            error: Exception raised by httpx during a request attempt.
+
+        Returns:
+            str: A short token such as ``"http_401"`` or ``"timeout"``.
+        """
+        if isinstance(error, httpx.HTTPStatusError):
+            return f"http_{error.response.status_code}"
+        if isinstance(error, httpx.TimeoutException):
+            return "timeout"
+        return "request_failed"

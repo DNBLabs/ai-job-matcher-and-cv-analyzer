@@ -12,7 +12,24 @@ from app.domain.job_search import JobSearch
 
 
 class JobSourceError(Exception):
-    """Raised when a Job Source cannot return listings after exhausting retries."""
+    """Raised when a Job Source cannot return listings after exhausting retries.
+
+    Carries an optional ``reason``: a short, PII/secret-free token (e.g.
+    ``"http_401"``, ``"exhausted_retries"``) that the worker pipeline logs to
+    explain *why* a source failed. The reason must never embed credentials,
+    request URLs, or user search terms (CONTEXT §3 PII-free logging).
+    """
+
+    def __init__(self, message: str, *, reason: str | None = None) -> None:
+        """Bind a human-readable message and an optional safe-to-log reason token.
+
+        Args:
+            message: Human-readable failure description (not logged by the pipeline).
+            reason: Short PII/secret-free token logged by the worker; ``None`` when
+                the source did not classify the failure.
+        """
+        super().__init__(message)
+        self.reason = reason
 
 
 class NormalisedListing(BaseModel):

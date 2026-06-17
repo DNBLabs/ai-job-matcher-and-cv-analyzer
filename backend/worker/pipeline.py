@@ -145,8 +145,15 @@ class AnalysisRunPipeline:
                     if listing.url not in seen_urls:
                         seen_urls.add(listing.url)
                         all_listings.append(listing)
-            except JobSourceError:
-                logger.warning("source %s failed for run %s", source_name, analysis_run.id)
+            except JobSourceError as error:
+                # error.reason is a PII/secret-free token (e.g. "http_401"); the
+                # exception message itself is never logged (it may embed URLs).
+                logger.warning(
+                    "source %s failed for run %s: %s",
+                    source_name,
+                    analysis_run.id,
+                    error.reason or "unknown",
+                )
                 failures.append({"source": source_name, "reason": "scrape_failed"})
 
         return all_listings, failures
