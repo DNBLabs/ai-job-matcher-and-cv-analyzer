@@ -1,5 +1,6 @@
 """Integration tests for POST /cvs/{id}/suggest-titles."""
 
+import logging
 import uuid
 
 import pytest
@@ -211,3 +212,42 @@ async def test_suggest_titles_handles_llm_provider_failure(
 
     assert response.status_code == 502
     assert response.json() == {"detail": "Title suggestions are temporarily unavailable"}
+
+
+@pytest.mark.asyncio
+async def test_suggest_titles_failure_logs_underlying_cause_server_side(
+    suggest_titles_test_app,
+    suggest_titles_client: AsyncClient,
+    db_session: Session,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A masked 502 still records the real provider cause + cv id in server logs.
+
+    The client sees only a generic 502, but operators must be able to recover the
+    underlying provider error from logs (issue #52: the 502 previously discarded
+    the chained cause, leaving prod failures undiagnosable).
+    """
+    from tests.auth.conftest import create_test_user
+
+    underlying = LlmClientError("AuthenticationError: Incorrect API key provided: sk-***redacted")
+    fake_llm = FakeLlmClient(error=underlying)
+    suggest_titles_test_app.state.fake_llm = fake_llm
+    suggest_titles_test_app.dependency_overrides[get_llm_client] = lambda: fake_llm
+
+    user = create_test_user(db_session, email="logged@example.com")
+    cv_row = await _upload_cv(suggest_titles_client, db_session, user)
+    await _set_cv_parsed_text(db_session, cv_row, "SRE with Terraform and Go.")
+
+    with caplog.at_level(logging.WARNING, logger="app.api.routes.cvs"):
+        response = await suggest_titles_client.post(f"/cvs/{cv_row.id}/suggest-titles")
+
+    assert response.status_code == 502
+
+    records = [r for r in caplog.records if r.name == "app.api.routes.cvs"]
+    assert records, "expected a server-side log record for the masked title-suggestion failure"
+    record = records[-1]
+    assert record.levelno == logging.WARNING
+    assert str(cv_row.id) in record.getMessage()
+    # The chained provider cause must be attached so operators can read it.
+    assert record.exc_info is not None
+    assert record.exc_info[1] is underlying
