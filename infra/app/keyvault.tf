@@ -47,6 +47,7 @@ locals {
     "openai-api-key"             = "owner:api+worker"
     "adzuna-app-id"              = "owner:worker"
     "adzuna-app-key"             = "owner:worker"
+    "reed-api-key"               = "owner:worker"
   }
 }
 

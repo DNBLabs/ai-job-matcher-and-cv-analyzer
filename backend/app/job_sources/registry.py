@@ -3,6 +3,8 @@
 The registry is the single point of discovery for the worker pipeline;
 new sources (e.g. LinkedIn post-MVP) are added by registering an adapter
 without modifying pipeline code.
+
+Source names are canonical board identifiers (e.g. ``"adzuna"``, ``"reed"``).
 """
 
 from app.job_sources.base import JobSource, JobSourceError
@@ -27,7 +29,7 @@ class JobSourceRegistry:
         """Add or replace a Job Source adapter under the given name.
 
         Args:
-            name: Canonical source identifier (e.g. ``"adzuna"``, ``"indeed"``).
+            name: Canonical source identifier (e.g. ``"adzuna"``, ``"reed"``).
             source: Adapter instance implementing the JobSource protocol.
         """
         self._sources[name] = source

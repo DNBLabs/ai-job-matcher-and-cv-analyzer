@@ -101,7 +101,7 @@ def _seed_result(db_session: Session, analysis_run: AnalysisRun) -> JobMatchResu
     """Create a Job Match Result linked to the given Analysis Run."""
     result = JobMatchResult(
         analysis_run_id=analysis_run.id,
-        source="indeed",
+        source="reed",
         external_id="job-123",
         title="Backend Engineer",
         company="Example Ltd",

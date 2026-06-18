@@ -1,6 +1,6 @@
 """Job Source port and NormalisedListing schema for pluggable job board adapters.
 
-Defines the protocol that all job source adapters (Adzuna, Indeed, …) must satisfy,
+Defines the protocol that all job source adapters (Adzuna, Reed, …) must satisfy,
 and the canonical NormalisedListing shape that the worker pipeline consumes.
 """
 
@@ -78,7 +78,7 @@ class NormalisedListing(BaseModel):
     location: str
     url: str
     description: str
-    source: str  # "adzuna" or "indeed"
+    source: str  # "adzuna" or "reed"
 
 
 class JobSource(Protocol):

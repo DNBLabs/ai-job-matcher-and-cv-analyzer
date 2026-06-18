@@ -11,7 +11,7 @@ Domain glossary for the AI Job Matcher & CV Analyzer.
 - Multiple named CV PDF uploads per account (encrypted at rest, user-deletable)
 - Sync AI Suggested Job Titles after CV upload (OpenAI GPT-4o-mini)
 - UK-scoped Job Search (role/keywords, UK city or Remote, optional filters)
-- Analysis Runs: async scrape Indeed UK + fetch Adzuna API (`gb`), cap 50 listings per source
+- Analysis Runs: async fetch from Reed + Adzuna APIs (`gb`), cap 50 listings per source
 - AI scoring per listing: Match Score, Interview Likelihood, full breakdown (OpenAI GPT-4o)
 - Job Match Results dashboard with sort, filters, and divergence badges
 - Run status lifecycle (Queued → Scraping → Scoring → Complete / Failed) with partial success
@@ -27,7 +27,7 @@ Domain glossary for the AI Job Matcher & CV Analyzer.
 
 - Gemini or multi-provider AI
 - Countries beyond UK
-- LinkedIn or additional Job Sources beyond Indeed + Adzuna
+- LinkedIn or additional Job Sources beyond Reed + Adzuna
 - Billing, paid tiers, or self-service unlimited upgrade
 - CV auto version history (multiple named CVs cover the use case)
 - Expandable lazy-load deep dive per job (full breakdown included in MVP scoring call)
@@ -54,7 +54,7 @@ Domain glossary for the AI Job Matcher & CV Analyzer.
 - No secrets in git, container images, or Terraform state plaintext
 - Production secrets in Azure Key Vault only; loaded via Managed Identity at runtime
 - API MI: Key Vault **get** on OAuth + email secrets only
-- Worker MI: Key Vault **get** on OpenAI + Adzuna secrets only
+- Worker MI: Key Vault **get** on OpenAI + Adzuna + Reed secrets only
 - OpenAI API: zero-retention / no-training configuration; policy documented and verified at deploy
 
 ### Data & logging
@@ -183,15 +183,15 @@ Both channels are required for MVP.
 ### Job Search
 The set of criteria a Job Seeker defines to scope which listings workers scrape: role/keywords, location (or remote), and optional filters (experience level, employment type). One Analysis Run pairs one CV with one Job Search.
 
-**Geographic scope (MVP):** UK only. Location picker offers UK cities plus "Remote." Job Source adapters target Adzuna `gb` and Indeed UK (`uk.indeed.com`).
+**Geographic scope (MVP):** UK only. Location picker offers UK cities plus "Remote." Job Source adapters target Adzuna `gb` and Reed (`reed.co.uk/api`).
 
 ### Job Source
-A pluggable adapter that fetches job listings from a specific board or API. MVP includes exactly two Job Sources:
+A pluggable adapter that fetches job listings from a specific board or API. MVP includes exactly two Job Sources, both **official REST APIs** (no scraping — see [ADR-0009](docs/adr/0009-replace-indeed-scrape-with-reed-api.md), which replaced the original Indeed scraper after it was IP-blocked from the datacenter):
 
-- **Indeed** — scraped by background workers (demonstrates async scraping, queue depth, worker scaling).
-- **Adzuna** — fetched via official API (legal, predictable fallback when scraping fails or rate-limits).
+- **Adzuna** — official API (`country=gb`); an aggregator spanning many UK boards.
+- **Reed** — official Jobseeker API (`/api/1.0/search`); direct UK listings with strong tech coverage.
 
-Workers cap listings per source per Analysis Run (e.g. top 50) to control AI API cost. Additional sources are out of MVP scope but must be addable without rewrites.
+Workers cap listings per source per Analysis Run (e.g. top 50) to control AI API cost, and retry each source up to 2 times on transient failure with exponential backoff + jitter. Additional sources are out of MVP scope but must be addable without rewrites.
 
 ## AI & Cost
 
@@ -240,7 +240,7 @@ A categorical estimate (`High`, `Medium`, `Low`) of whether the Job Seeker is li
 ### Job Match Result
 One scraped listing evaluated against a CV within an Analysis Run. Each result includes:
 
-- Job title, company, source (Indeed / Adzuna), link to original posting
+- Job title, company, source (Reed / Adzuna), link to original posting
 - **Match Score** (0–100)
 - **Interview Likelihood** (`High` / `Medium` / `Low`)
 - **Full AI breakdown:** matched skills, skill gaps, red flags, suggested talking points for an application or interview
@@ -256,14 +256,14 @@ Each User Account may start **3 Analysis Runs per rolling 24 hours** and may hav
 Specific User Accounts (friends/family) may be flagged as **unlimited** — exempt from the daily run cap. Managed via a **basic Admin UI** (MVP): search user by email, toggle unlimited on/off. Not self-service; no billing tiers for MVP.
 
 ### Results View
-Job Match Results for a completed Analysis Run are shown sorted by **Match Score descending** by default. Alex may filter by Interview Likelihood (`High` / `Medium` / `Low`), Job Source (Indeed / Adzuna), and minimum Match Score. When Match Score and Interview Likelihood diverge meaningfully (e.g. strong skills fit but seniority gap), the UI surfaces a short badge (e.g. "Skills fit, seniority gap").
+Job Match Results for a completed Analysis Run are shown sorted by **Match Score descending** by default. Alex may filter by Interview Likelihood (`High` / `Medium` / `Low`), Job Source (Reed / Adzuna), and minimum Match Score. When Match Score and Interview Likelihood diverge meaningfully (e.g. strong skills fit but seniority gap), the UI surfaces a short badge (e.g. "Skills fit, seniority gap").
 
 ### Run Failure & Partial Success
 Workers **retry each Job Source up to 2 times** on transient failure (rate limit, timeout).
 
 | Outcome | Status | Alex sees |
 |---|---|---|
-| ≥1 listing scraped and scored | `Complete` | Results list; banner if any source failed (e.g. "Indeed unavailable — showing 42 results from Adzuna") |
+| ≥1 listing fetched and scored | `Complete` | Results list; banner if any source failed (e.g. "Reed unavailable — showing 42 results from Adzuna") |
 | 0 listings after all retries | `Failed` | Clear message distinguishing "No jobs found for this search" from "Scraping failed — try again later" |
 
 FinOps logs cost for whatever AI steps actually ran, including partial runs.

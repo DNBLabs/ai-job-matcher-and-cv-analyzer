@@ -261,6 +261,11 @@ resource "azurerm_container_app" "worker" {
     key_vault_secret_id = azurerm_key_vault_secret.placeholders["adzuna-app-key"].versionless_id
     identity            = azurerm_user_assigned_identity.worker.id
   }
+  secret {
+    name                = "reed-api-key"
+    key_vault_secret_id = azurerm_key_vault_secret.placeholders["reed-api-key"].versionless_id
+    identity            = azurerm_user_assigned_identity.worker.id
+  }
 
   # Connection string for the KEDA scaler ONLY (Listen-only, queue-scoped SAS).
   # ACA's custom_scale_rule supports connection-string auth only, not MI —
@@ -357,6 +362,10 @@ resource "azurerm_container_app" "worker" {
       env {
         name        = "ADZUNA_APP_KEY"
         secret_name = "adzuna-app-key"
+      }
+      env {
+        name        = "REED_API_KEY"
+        secret_name = "reed-api-key"
       }
       # Run-completion email via Microsoft Graph sendMail using the worker MI
       # (same shared mailbox + Application Access Policy as the API; docs/adr/0005).

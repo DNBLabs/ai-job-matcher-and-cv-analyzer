@@ -1,0 +1,56 @@
+{
+  "results": [
+    {
+      "jobId": 54321001,
+      "employerId": 9001,
+      "employerName": "TechCorp Ltd",
+      "employerProfileId": null,
+      "employerProfileName": null,
+      "jobTitle": "Senior Python Developer",
+      "locationName": "London",
+      "minimumSalary": 70000,
+      "maximumSalary": 85000,
+      "currency": "GBP",
+      "expirationDate": "01/08/2026",
+      "date": "02/07/2026",
+      "jobDescription": "We are looking for a Senior Python Developer to join our growing team building scalable backend services with FastAPI and PostgreSQL.",
+      "applications": 12,
+      "jobUrl": "https://www.reed.co.uk/jobs/senior-python-developer/54321001"
+    },
+    {
+      "jobId": 54321002,
+      "employerId": 9002,
+      "employerName": "StartupXYZ",
+      "employerProfileId": null,
+      "employerProfileName": null,
+      "jobTitle": "Backend Engineer",
+      "locationName": "Manchester",
+      "minimumSalary": 55000,
+      "maximumSalary": 65000,
+      "currency": "GBP",
+      "expirationDate": "05/08/2026",
+      "date": "06/07/2026",
+      "jobDescription": "Backend Engineer role working with Python, Django, and AWS in a remote-friendly team.",
+      "applications": 4,
+      "jobUrl": "https://www.reed.co.uk/jobs/backend-engineer/54321002"
+    },
+    {
+      "jobId": 54321003,
+      "employerId": 9003,
+      "employerName": "Finance House PLC",
+      "employerProfileId": null,
+      "employerProfileName": null,
+      "jobTitle": "Software Engineer - Python",
+      "locationName": "London",
+      "minimumSalary": null,
+      "maximumSalary": null,
+      "currency": "GBP",
+      "expirationDate": "10/08/2026",
+      "date": "11/07/2026",
+      "jobDescription": "Join our quantitative engineering team building real-time data pipelines in Python.",
+      "applications": 7,
+      "jobUrl": "https://www.reed.co.uk/jobs/software-engineer-python/54321003"
+    }
+  ],
+  "totalResults": 3
+}

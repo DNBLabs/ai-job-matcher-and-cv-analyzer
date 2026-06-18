@@ -7,9 +7,9 @@ from typing import Any
 
 from app.adapters.factory import (
     create_adzuna_job_source,
-    create_indeed_job_source,
     create_job_queue,
     create_notification_port,
+    create_reed_job_source,
     create_scoring_llm_client,
     create_secret_provider,
 )
@@ -68,7 +68,10 @@ def main() -> None:
         job_sources.append(("adzuna", create_adzuna_job_source(secret_provider)))
     except SecretNotFoundError:
         logger.warning("ADZUNA_APP_ID/KEY not configured — skipping Adzuna source")
-    job_sources.append(("indeed", create_indeed_job_source()))
+    try:
+        job_sources.append(("reed", create_reed_job_source(secret_provider)))
+    except SecretNotFoundError:
+        logger.warning("REED_API_KEY not configured — skipping Reed source")
     pipeline = AnalysisRunPipeline(
         job_sources=job_sources,
         scoring_service=ScoringService(create_scoring_llm_client(settings, secret_provider)),
