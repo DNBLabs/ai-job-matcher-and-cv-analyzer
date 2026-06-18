@@ -12,7 +12,7 @@ import pytest
 
 from app.domain.job_search import JobSearch
 from app.job_sources.base import JobSourceError, NormalisedListing
-from app.job_sources.indeed import IndeedJobSource
+from app.job_sources.indeed import _MAX_RETRIES, IndeedJobSource
 
 _FIXTURE_PATH = pathlib.Path(__file__).parent.parent / "fixtures" / "indeed_search.html"
 _BASE_URL = "https://uk.indeed.com"
@@ -338,6 +338,68 @@ def test_fetch_retries_on_429_then_succeeds() -> None:
 
     assert len(listings) == 3
     assert mock_client.get.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# Backoff between retries (issue #58 — zero-delay retries exhausted instantly)
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_sleeps_with_backoff_between_transient_retries() -> None:
+    """Each transient retry is preceded by a backoff sleep (not a zero-delay retry)."""
+    success_response = MagicMock()
+    success_response.raise_for_status.return_value = None
+    success_response.text = _load_fixture()
+
+    first = MagicMock()
+    first.raise_for_status.side_effect = _error_response_mock(503)
+    second = MagicMock()
+    second.raise_for_status.side_effect = _error_response_mock(503)
+
+    mock_client = MagicMock()
+    mock_client.get.side_effect = [first, second, success_response]
+
+    delays: list[float] = []
+    indeed = IndeedJobSource(sleep=delays.append)
+    indeed._http_client = mock_client
+
+    indeed.fetch_listings(_london_search())
+
+    assert len(delays) == 2
+    assert all(d >= 0.0 for d in delays)
+
+
+def test_fetch_does_not_sleep_after_final_failed_attempt() -> None:
+    """No backoff sleep follows the last attempt when retries are exhausted."""
+    mock_client = MagicMock()
+    mock_client.get.side_effect = httpx.TimeoutException("timed out")
+
+    delays: list[float] = []
+    indeed = IndeedJobSource(sleep=delays.append)
+    indeed._http_client = mock_client
+
+    with pytest.raises(JobSourceError):
+        indeed.fetch_listings(_london_search())
+
+    assert len(delays) == _MAX_RETRIES
+
+
+def test_fetch_does_not_sleep_on_non_transient_error() -> None:
+    """A non-transient 4xx raises immediately with no backoff sleep."""
+    first = MagicMock()
+    first.raise_for_status.side_effect = _error_response_mock(403)
+
+    mock_client = MagicMock()
+    mock_client.get.return_value = first
+
+    delays: list[float] = []
+    indeed = IndeedJobSource(sleep=delays.append)
+    indeed._http_client = mock_client
+
+    with pytest.raises(JobSourceError):
+        indeed.fetch_listings(_london_search())
+
+    assert delays == []
 
 
 # ---------------------------------------------------------------------------
