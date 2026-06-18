@@ -1,19 +1,26 @@
 """Adzuna UK job listings adapter implementing the JobSource port.
 
 Calls the Adzuna REST API (country=gb, page 1) and normalises each result to
-NormalisedListing. Retries up to twice on transient errors (HTTP 429, 5xx, timeout);
+NormalisedListing. Retries up to twice on transient errors (HTTP 429, 5xx, timeout),
+spacing attempts with exponential backoff + jitter so a brief throttle is ridden out;
 raises JobSourceError immediately on non-transient 4xx failures.
 
 Source: https://developer.adzuna.com/activedocs#!/adzuna/search
 """
 
 import logging
+import time
+from collections.abc import Callable
 from typing import Any
 
 import httpx
 
 from app.domain.job_search import JobSearch
-from app.job_sources.base import JobSourceError, NormalisedListing
+from app.job_sources.base import (
+    JobSourceError,
+    NormalisedListing,
+    backoff_delay_seconds,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +44,7 @@ class AdzunaJobSource:
         app_id: str,
         app_key: str,
         http_client: httpx.Client | None = None,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         """Bind the adapter to Adzuna credentials and an optional HTTP client.
 
@@ -45,10 +53,13 @@ class AdzunaJobSource:
             app_key: Adzuna application key (resolved from SecretProvider in prod).
             http_client: Optional pre-configured httpx.Client; a default 30s-timeout
                 client is created when not supplied (allows injection in tests).
+            sleep: Callable used to pause between retries; defaults to ``time.sleep``.
+                Tests inject a fake to avoid real delays and to assert backoff.
         """
         self._app_id = app_id
         self._app_key = app_key
         self._http_client = http_client or httpx.Client(timeout=_DEFAULT_TIMEOUT_SECONDS)
+        self._sleep = sleep
 
     def fetch_listings(
         self, job_search: JobSearch, max_results: int = 50
@@ -96,6 +107,8 @@ class AdzunaJobSource:
                     self._failure_reason(error),
                     "retrying" if attempt < _MAX_RETRIES else "giving up",
                 )
+                if attempt < _MAX_RETRIES:
+                    self._sleep(backoff_delay_seconds(attempt))
 
         raise JobSourceError(
             f"Adzuna fetch failed after {_MAX_RETRIES + 1} attempts",

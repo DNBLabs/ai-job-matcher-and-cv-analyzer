@@ -11,7 +11,7 @@ import httpx
 import pytest
 
 from app.domain.job_search import JobSearch
-from app.job_sources.adzuna import AdzunaJobSource
+from app.job_sources.adzuna import _MAX_RETRIES, AdzunaJobSource
 from app.job_sources.base import JobSourceError, NormalisedListing
 from app.job_sources.registry import JobSourceNotFoundError, JobSourceRegistry
 
@@ -302,6 +302,76 @@ def test_fetch_listings_raises_immediately_on_401_unauthorized() -> None:
         adzuna.fetch_listings(_london_search())
 
     assert mock_client.get.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Backoff between retries (issue #58 — zero-delay retries exhausted instantly)
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_listings_sleeps_with_backoff_between_transient_retries() -> None:
+    """Each transient retry is preceded by a backoff sleep (not a zero-delay retry)."""
+    success_response = MagicMock()
+    success_response.raise_for_status.return_value = None
+    success_response.json.return_value = _load_fixture()
+
+    first = MagicMock()
+    first.raise_for_status.side_effect = _error_response_mock(503)
+    second = MagicMock()
+    second.raise_for_status.side_effect = _error_response_mock(503)
+
+    mock_client = MagicMock()
+    mock_client.get.side_effect = [first, second, success_response]
+
+    delays: list[float] = []
+    adzuna = AdzunaJobSource(
+        app_id="test_id", app_key="test_key", sleep=delays.append
+    )
+    adzuna._http_client = mock_client
+
+    adzuna.fetch_listings(_london_search())
+
+    # Two transient failures before success -> two backoff sleeps.
+    assert len(delays) == 2
+    assert all(d >= 0.0 for d in delays)
+
+
+def test_fetch_listings_does_not_sleep_after_final_failed_attempt() -> None:
+    """No backoff sleep follows the last attempt when retries are exhausted."""
+    mock_client = MagicMock()
+    mock_client.get.side_effect = httpx.TimeoutException("timed out")
+
+    delays: list[float] = []
+    adzuna = AdzunaJobSource(
+        app_id="test_id", app_key="test_key", sleep=delays.append
+    )
+    adzuna._http_client = mock_client
+
+    with pytest.raises(JobSourceError):
+        adzuna.fetch_listings(_london_search())
+
+    # 3 attempts -> sleep only between them (2 sleeps), never after the last.
+    assert len(delays) == _MAX_RETRIES
+
+
+def test_fetch_listings_does_not_sleep_on_non_transient_error() -> None:
+    """A non-transient 4xx raises immediately with no backoff sleep."""
+    first = MagicMock()
+    first.raise_for_status.side_effect = _error_response_mock(400)
+
+    mock_client = MagicMock()
+    mock_client.get.return_value = first
+
+    delays: list[float] = []
+    adzuna = AdzunaJobSource(
+        app_id="test_id", app_key="test_key", sleep=delays.append
+    )
+    adzuna._http_client = mock_client
+
+    with pytest.raises(JobSourceError):
+        adzuna.fetch_listings(_london_search())
+
+    assert delays == []
 
 
 # ---------------------------------------------------------------------------

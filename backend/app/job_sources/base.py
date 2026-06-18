@@ -4,11 +4,45 @@ Defines the protocol that all job source adapters (Adzuna, Indeed, …) must sat
 and the canonical NormalisedListing shape that the worker pipeline consumes.
 """
 
+import random
 from typing import Protocol
 
 from pydantic import BaseModel
 
 from app.domain.job_search import JobSearch
+
+# Retry backoff (shared by all adapters). A brief 503/429 throttle from a source
+# is ridden out by spacing retries with exponential backoff + full jitter rather
+# than firing all attempts in a few hundred milliseconds (issue #58).
+# Full jitter — random.uniform(0, capped exponential) — spreads retries and avoids
+# synchronised "thundering herd" pile-ups.
+# Source: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+_BACKOFF_BASE_SECONDS = 0.5
+_BACKOFF_MAX_SECONDS = 8.0
+
+
+def backoff_delay_seconds(
+    attempt: int,
+    *,
+    base: float = _BACKOFF_BASE_SECONDS,
+    cap: float = _BACKOFF_MAX_SECONDS,
+) -> float:
+    """Return the seconds to wait before the retry following a failed ``attempt``.
+
+    Exponential backoff with full jitter: a uniformly random value in
+    ``[0, min(cap, base * 2**attempt)]``. The exponential ceiling rises per
+    attempt (until capped); the jitter desynchronises concurrent retriers.
+
+    Args:
+        attempt: Zero-based index of the attempt that just failed (0 = first).
+        base: Base delay in seconds for the first retry.
+        cap: Maximum ceiling in seconds the exponential term is clamped to.
+
+    Returns:
+        float: Backoff delay in seconds, ``0.0`` ≤ delay ≤ ``min(cap, base * 2**attempt)``.
+    """
+    ceiling = min(cap, base * (2**attempt))
+    return random.uniform(0, ceiling)
 
 
 class JobSourceError(Exception):

@@ -1,7 +1,8 @@
 """Indeed UK job listings adapter implementing the JobSource port.
 
 Scrapes uk.indeed.com search results and normalises each card to NormalisedListing.
-Retries up to twice on transient errors (HTTP 429, 5xx, timeout); raises
+Retries up to twice on transient errors (HTTP 429, 5xx, timeout), spacing attempts
+with exponential backoff + jitter so a brief throttle is ridden out; raises
 JobSourceError immediately on non-transient 4xx failures.
 
 Uses curl_cffi to impersonate Chrome at the TLS layer, bypassing Cloudflare's
@@ -12,6 +13,8 @@ To run a live smoke test: set SMOKE_INDEED=1 and call fetch_listings directly.
 """
 
 import logging
+import time
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlencode
 
@@ -22,7 +25,11 @@ from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 from curl_cffi.requests.exceptions import Timeout as CurlTimeout
 
 from app.domain.job_search import JobSearch
-from app.job_sources.base import JobSourceError, NormalisedListing
+from app.job_sources.base import (
+    JobSourceError,
+    NormalisedListing,
+    backoff_delay_seconds,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,14 +69,22 @@ class IndeedJobSource:
     Credentials are not required (public search pages).
     """
 
-    def __init__(self, *, http_client: Any | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        http_client: Any | None = None,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
         """Bind the adapter to an optional HTTP client.
 
         Args:
             http_client: Optional pre-configured client; a curl_cffi Chrome-impersonating
                 session is created when not supplied. Tests may inject a mock here.
+            sleep: Callable used to pause between retries; defaults to ``time.sleep``.
+                Tests inject a fake to avoid real delays and to assert backoff.
         """
         self._http_client = http_client if http_client is not None else _make_default_client()
+        self._sleep = sleep
 
     def fetch_listings(
         self, job_search: JobSearch, max_results: int = 50
@@ -119,6 +134,8 @@ class IndeedJobSource:
                     self._failure_reason(error),
                     "retrying" if attempt < _MAX_RETRIES else "giving up",
                 )
+                if attempt < _MAX_RETRIES:
+                    self._sleep(backoff_delay_seconds(attempt))
 
         raise JobSourceError(
             f"Indeed fetch failed after {_MAX_RETRIES + 1} attempts",
