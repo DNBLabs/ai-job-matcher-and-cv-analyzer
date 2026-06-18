@@ -15,7 +15,7 @@ from app.adapters.openai_client import OpenAiLlmClient
 from app.config import Settings
 from app.job_sources.adzuna import AdzunaJobSource
 from app.job_sources.base import JobSource
-from app.job_sources.indeed import IndeedJobSource
+from app.job_sources.reed import ReedJobSource
 from app.ports.blob_store import BlobStore
 from app.ports.job_queue import JobQueue
 from app.ports.llm_client import LlmClient, ScoringLlmClient
@@ -202,10 +202,17 @@ def create_adzuna_job_source(secret_provider: SecretProvider) -> JobSource:
     )
 
 
-def create_indeed_job_source() -> JobSource:
-    """Return the Indeed UK JobSource adapter (no credentials required).
+def create_reed_job_source(secret_provider: SecretProvider) -> JobSource:
+    """Return the Reed JobSource adapter wired with the API key from secrets.
+
+    Args:
+        secret_provider: SecretProvider port resolving ``REED_API_KEY`` (Worker
+            Managed Identity scope in production).
 
     Returns:
-        JobSource: Indeed-backed scraping adapter for UK listings.
+        JobSource: Reed-backed adapter for UK listings.
+
+    Raises:
+        SecretNotFoundError: When ``REED_API_KEY`` is missing from the provider.
     """
-    return IndeedJobSource()
+    return ReedJobSource(api_key=secret_provider.get("REED_API_KEY"))

@@ -95,9 +95,9 @@ resource "azurerm_role_assignment" "api_kv_openai" {
   principal_id         = azurerm_user_assigned_identity.api.principal_id
 }
 
-# Worker reads only OpenAI + Adzuna secrets + the shared DB password.
+# Worker reads only OpenAI + Adzuna + Reed secrets + the shared DB password.
 resource "azurerm_role_assignment" "worker_kv_openai_adzuna" {
-  for_each = toset(["openai-api-key", "adzuna-app-id", "adzuna-app-key"])
+  for_each = toset(["openai-api-key", "adzuna-app-id", "adzuna-app-key", "reed-api-key"])
 
   scope                = azurerm_key_vault_secret.placeholders[each.key].resource_versionless_id
   role_definition_name = "Key Vault Secrets User"

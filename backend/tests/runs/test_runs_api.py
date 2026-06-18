@@ -342,7 +342,7 @@ async def test_get_run_includes_source_failures_on_partial_run(
     pipeline = AnalysisRunPipeline(
         job_sources=[
             ("adzuna", FakeJobSource(listings=[make_listing(url="https://a.com/1")])),
-            ("indeed", FakeJobSource(error=JobSourceError("rate-limited"))),
+            ("reed", FakeJobSource(error=JobSourceError("rate-limited"))),
         ],
         scoring_service=ScoringService(
             FakeScoringLlmClient(
@@ -369,7 +369,7 @@ async def test_get_run_includes_source_failures_on_partial_run(
     assert body["source_failures"] is not None
     failures = body["source_failures"]["failures"]
     assert len(failures) == 1
-    assert failures[0]["source"] == "indeed"
+    assert failures[0]["source"] == "reed"
 
 
 @pytest.mark.asyncio
@@ -403,7 +403,7 @@ async def test_get_run_includes_failure_message(
     AnalysisRunPipeline(
         job_sources=[
             ("adzuna", FakeJobSource(error=JobSourceError("down"))),
-            ("indeed", FakeJobSource(error=JobSourceError("down"))),
+            ("reed", FakeJobSource(error=JobSourceError("down"))),
         ],
         scoring_service=ScoringService(FakeScoringLlmClient(behaviours=[_dummy_output])),
     ).run(run_scrape_fail, db_session)
@@ -413,7 +413,7 @@ async def test_get_run_includes_failure_message(
     AnalysisRunPipeline(
         job_sources=[
             ("adzuna", FakeJobSource(listings=[])),
-            ("indeed", FakeJobSource(listings=[])),
+            ("reed", FakeJobSource(listings=[])),
         ],
         scoring_service=ScoringService(FakeScoringLlmClient(behaviours=[_dummy_output])),
     ).run(run_empty, db_session)

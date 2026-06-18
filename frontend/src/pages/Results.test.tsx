@@ -41,11 +41,11 @@ const FIXTURE_RESULTS: JobMatchResult[] = [
   },
   {
     id: "r-2",
-    source: "indeed",
+    source: "reed",
     external_id: "i1",
     title: "Junior Dev",
     company: "Startup",
-    url: "https://indeed.co.uk/job/2",
+    url: "https://reed.co.uk/job/2",
     match_score: 45,
     interview_likelihood: "medium",
     breakdown: {
@@ -60,11 +60,11 @@ const FIXTURE_RESULTS: JobMatchResult[] = [
   },
   {
     id: "r-3",
-    source: "indeed",
+    source: "reed",
     external_id: "i2",
     title: "Staff Engineer",
     company: "BigCo",
-    url: "https://indeed.co.uk/job/3",
+    url: "https://reed.co.uk/job/3",
     match_score: 60,
     interview_likelihood: "low",
     breakdown: {
@@ -152,8 +152,8 @@ describe("Results", () => {
     renderResults();
     await waitFor(() => expect(screen.getByText("Senior Engineer")).toBeInTheDocument());
 
-    // indeed + low → only Staff Engineer (r-3) should remain
-    fireEvent.click(screen.getByRole("checkbox", { name: /^indeed$/i }));
+    // reed + low → only Staff Engineer (r-3) should remain
+    fireEvent.click(screen.getByRole("checkbox", { name: /^reed$/i }));
     fireEvent.click(screen.getByRole("checkbox", { name: /^low$/i }));
 
     expect(screen.queryByText("Senior Engineer")).not.toBeInTheDocument();
@@ -164,7 +164,7 @@ describe("Results", () => {
   it("shows a partial-failure banner when source_failures is present", async () => {
     vi.mocked(getRun).mockResolvedValue({
       ...FIXTURE_RUN,
-      source_failures: { indeed: "timeout" },
+      source_failures: { reed: "timeout" },
     });
     vi.mocked(getRunResults).mockResolvedValue(FIXTURE_RESULTS);
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted — **superseded in part by [ADR-0009](0009-replace-indeed-scrape-with-reed-api.md)**, which replaces the Indeed scrape source with the Reed API. The Adzuna API decision below still stands.
 
 ## Context
 

@@ -40,7 +40,7 @@ def test_classify_run_failure_returns_no_jobs_found_when_source_failures_empty()
 
 def test_classify_run_failure_returns_scrape_failed_when_sources_errored() -> None:
     """FAILED with at least one source error maps to SCRAPE_FAILED."""
-    failures = {"failures": [{"source": "indeed", "reason": "scrape_failed"}]}
+    failures = {"failures": [{"source": "reed", "reason": "scrape_failed"}]}
     assert (
         classify_run_failure(AnalysisRunStatus.FAILED, failures)
         is RunFailureReason.SCRAPE_FAILED
@@ -52,7 +52,7 @@ def test_classify_run_failure_scrape_failed_with_multiple_source_errors() -> Non
     failures = {
         "failures": [
             {"source": "adzuna", "reason": "scrape_failed"},
-            {"source": "indeed", "reason": "scrape_failed"},
+            {"source": "reed", "reason": "scrape_failed"},
         ]
     }
     assert (

@@ -6,7 +6,7 @@ Job Seekers applying for roles in the UK spend hours searching job boards and ma
 
 ## Solution
 
-A web application where a Job Seeker signs in, uploads one or more named CV PDFs, receives AI-generated Suggested Job Titles, defines a UK-scoped Job Search, and starts an Analysis Run. Background workers scrape Indeed UK and fetch listings from the Adzuna API, then score each listing with a dual-score model (Match Score + Interview Likelihood) and a full AI breakdown. Results appear on a dashboard sorted and filterable by score and likelihood, with links back to original postings. The Job Seeker is notified by email when async runs complete and can return later via their User Account. Operators manage fair-use exceptions through a basic Admin UI.
+A web application where a Job Seeker signs in, uploads one or more named CV PDFs, receives AI-generated Suggested Job Titles, defines a UK-scoped Job Search, and starts an Analysis Run. Background workers fetch listings from the Reed and Adzuna APIs, then score each listing with a dual-score model (Match Score + Interview Likelihood) and a full AI breakdown. Results appear on a dashboard sorted and filterable by score and likelihood, with links back to original postings. The Job Seeker is notified by email when async runs complete and can return later via their User Account. Operators manage fair-use exceptions through a basic Admin UI.
 
 ---
 
@@ -58,7 +58,7 @@ A web application where a Job Seeker signs in, uploads one or more named CV PDFs
 30. As a Job Seeker, I want the completion email to deep-link directly to my results, so that I can act on matches immediately.
 31. As a Job Seeker, I want a clear failure message when a run finds zero jobs, so that I know whether to broaden my search or retry later.
 32. As a Job Seeker, I want failure messages to distinguish "no jobs found" from "scraping failed", so that I know the appropriate next step.
-33. As a Job Seeker, I want a banner on partial results when one Job Source failed, so that I understand incomplete coverage (e.g. "Indeed unavailable — showing results from Adzuna").
+33. As a Job Seeker, I want a banner on partial results when one Job Source failed, so that I understand incomplete coverage (e.g. "Reed unavailable — showing results from Adzuna").
 
 ### Results & Scoring
 
@@ -69,7 +69,7 @@ A web application where a Job Seeker signs in, uploads one or more named CV PDFs
 38. As a Job Seeker, I want Interview Likelihood labeled as an AI estimate rather than a guarantee, so that I am not misled about outcomes.
 39. As a Job Seeker, I want a full AI breakdown per result (matched skills, skill gaps, red flags, talking points), so that I can tailor my application or interview prep.
 40. As a Job Seeker, I want to filter results by Interview Likelihood, so that I can focus on roles where I am most competitive.
-41. As a Job Seeker, I want to filter results by Job Source (Indeed / Adzuna), so that I can compare coverage across boards.
+41. As a Job Seeker, I want to filter results by Job Source (Reed / Adzuna), so that I can compare coverage across boards.
 42. As a Job Seeker, I want to filter results by minimum Match Score, so that I can hide low-fit listings.
 43. As a Job Seeker, I want a badge when Match Score and Interview Likelihood diverge (e.g. "Skills fit, seniority gap"), so that I notice roles that look good on paper but may be risky to pursue.
 44. As a Job Seeker, I want to view past Analysis Runs from my dashboard, so that I can revisit previous searches.
@@ -103,7 +103,7 @@ The codebase is greenfield. Modules below are ordered by dependency. Each **deep
 | **Auth service** | Google OAuth, magic-link issuance/verification, session/JWT, `is_admin` gate | Yes |
 | **CV service** | Upload validation (PDF only, size cap), encrypted storage, parse-to-text, delete-with-retain-runs | Yes |
 | **Title suggestion service** | Sync OpenAI call (GPT-4o-mini), structured title+rationale response | Yes |
-| **Job Source registry** | Pluggable adapters: `IndeedJobSource` (scrape), `AdzunaJobSource` (API), normalised listing shape | Yes |
+| **Job Source registry** | Pluggable adapters: `ReedJobSource` (API), `AdzunaJobSource` (API), normalised listing shape | Yes |
 | **Analysis orchestrator** | Enqueue run, enforce quota/concurrency, transition run status, partial-success rules | Yes |
 | **Worker pipeline** | Consume queue messages: fetch listings (retry 2× per source, cap 50/source) → score each listing → persist results → notify | Yes |
 | **Scoring service** | OpenAI GPT-4o structured JSON scoring, schema validation, 1 retry on malformed output, FinOps token/cost logging | Yes |
@@ -138,9 +138,9 @@ Adapters: Azure (Blob Storage, Service Bus, Key Vault) for production; Azurite/M
 fetch_listings(job_search, max_results=50) → list[NormalisedListing]
 ```
 
-`NormalisedListing`: `external_id`, `source` (indeed | adzuna), `title`, `company`, `location`, `url`, `description_text`, `posted_at?`
+`NormalisedListing`: `external_id`, `source` (reed | adzuna), `title`, `company`, `location`, `url`, `description_text`, `posted_at?`
 
-- **Indeed UK**: worker HTTP scrape of `uk.indeed.com`; retry up to 2× on transient failure.
+- **Reed**: official Jobseeker REST API (`/api/1.0/search`, HTTP Basic auth); retry up to 2× on transient failure. (Replaced the Indeed scrape — ADR-0009.)
 - **Adzuna**: REST API with `country=gb`; retry up to 2× on transient failure.
 
 ### Dual-score JSON schema (ADR-0003)
@@ -238,7 +238,7 @@ Responsive web only; no native app.
 - Test **observable behavior** at module boundaries: given inputs, assert outputs and side effects on ports — not internal call order or private methods.
 - Prefer **fake implementations** of `BlobStore`, `JobQueue`, `JobSource`, and LLM client over mocks that mirror implementation.
 - Integration tests use Docker Compose local adapters; no Azure required in CI.
-- Do not snapshot raw HTML from Indeed in unit tests — use recorded fixture fragments.
+- Do not make live Job Source API calls in unit tests — use recorded JSON response fixtures.
 
 ### Modules to test (recommended)
 
@@ -246,7 +246,7 @@ Responsive web only; no native app.
 |---|---|---|
 | **Domain core** (quota, run state machine, partial-success rules) | Unit | Pure logic; high value, no I/O |
 | **Scoring service** (JSON schema validation, retry-on-malformed) | Unit | Critical correctness; use fake LLM returning valid/invalid JSON |
-| **Job Source adapters** (normalisation) | Unit | Indeed/Adzuna mapping from fixtures; no live network in CI |
+| **Job Source adapters** (normalisation) | Unit | Reed/Adzuna mapping from fixtures; no live network in CI |
 | **Analysis orchestrator** | Unit + integration | Quota/concurrency enforcement with fake queue and repo |
 | **CV service** | Integration | Upload/delete lifecycle against fake BlobStore |
 | **Auth service** | Integration | Magic-link expiry and single-use semantics |
@@ -256,7 +256,6 @@ Responsive web only; no native app.
 
 ### Modules deprioritised for automated test in MVP
 
-- **Indeed live scraper** — manual/smoke only; too brittle for CI; unit-test parser against fixtures.
 - **Terraform** — `terraform validate` + plan in CI; not unit-tested in application test suite.
 - **Email templates** — snapshot subject/body in one integration test; no live send in CI.
 
@@ -272,7 +271,7 @@ Per `CONTEXT.md` and ADRs:
 
 - Gemini or multi-provider AI
 - Countries beyond UK
-- LinkedIn or additional Job Sources beyond Indeed + Adzuna
+- LinkedIn or additional Job Sources beyond Reed + Adzuna
 - Billing, paid tiers, or self-service unlimited upgrade
 - CV auto version history (multiple named CVs cover the use case)
 - Expandable lazy-load deep dive per job (full breakdown included in MVP scoring call)
@@ -289,9 +288,10 @@ Per `CONTEXT.md` and ADRs:
 ### Related documents
 
 - Domain glossary: `CONTEXT.md`
-- ADR-0001: Hybrid Job Sourcing (Indeed + Adzuna)
+- ADR-0001: Hybrid Job Sourcing (Indeed + Adzuna) — Indeed half superseded by ADR-0009
 - ADR-0002: Azure Production with Cloud-Agnostic Ports
 - ADR-0003: Dual-Score Model (Match Score + Interview Likelihood)
+- ADR-0009: Replace Indeed Scrape with Reed API
 
 ### Suggested implementation order (vertical slices)
 
@@ -300,7 +300,7 @@ Per `CONTEXT.md` and ADRs:
 3. CV upload/delete + title suggestion (sync)
 4. Analysis Run creation + queue + worker skeleton (status transitions)
 5. Adzuna adapter → scoring → results API (API-only path first)
-6. Indeed adapter + partial failure handling
+6. Reed adapter + partial failure handling
 7. Email notifications + dashboard polling UI
 8. Results filters, badges, quota UI
 9. Admin UI + unlimited allowlist
@@ -312,6 +312,6 @@ Seed `is_admin = true` and `is_unlimited = true` for operator email via migratio
 
 ### Open technical risks
 
-- Indeed scraper brittleness (mitigated by Adzuna fallback per ADR-0001)
+- Job Source API availability — mitigated by dual-source partial success and 2× retry with backoff (ADR-0009)
 - OpenAI cost at 100 listings/run — mitigated by quota (3/day) and 50/source cap
 - Magic-link email deliverability — use reputable transactional provider; SPF/DKIM in prod

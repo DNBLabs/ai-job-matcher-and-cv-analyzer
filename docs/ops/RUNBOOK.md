@@ -52,6 +52,7 @@ az keyvault secret set --vault-name "$KV" --name google-oauth-client-secret --va
 az keyvault secret set --vault-name "$KV" --name openai-api-key            --value "<...>"
 az keyvault secret set --vault-name "$KV" --name adzuna-app-id             --value "<...>"
 az keyvault secret set --vault-name "$KV" --name adzuna-app-key            --value "<...>"
+az keyvault secret set --vault-name "$KV" --name reed-api-key              --value "<...>"
 ```
 
 The `database-password` secret is generated and owned by Terraform — do not set it.

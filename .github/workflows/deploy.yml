@@ -158,6 +158,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
           ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          REED_API_KEY: ${{ secrets.REED_API_KEY }}
         run: |
           set -euo pipefail
           sync() {
@@ -174,6 +175,7 @@ jobs:
           sync openai-api-key "$OPENAI_API_KEY"
           sync adzuna-app-id "$ADZUNA_APP_ID"
           sync adzuna-app-key "$ADZUNA_APP_KEY"
+          sync reed-api-key "$REED_API_KEY"
 
       - name: Build and push SHA-tagged image
         # API and worker share one backend image (different start command); build
