@@ -1,7 +1,5 @@
 """Factory functions wiring infrastructure ports from application settings."""
 
-import logging
-
 from app.adapters.azure.blob_store import AzureBlobStore
 from app.adapters.azure.credential import create_azure_credential
 from app.adapters.azure.graph_notification import GraphApiNotificationPort
@@ -217,6 +215,4 @@ def create_reed_job_source(secret_provider: SecretProvider) -> JobSource:
     Raises:
         SecretNotFoundError: When ``REED_API_KEY`` is missing from the provider.
     """
-    api_key = secret_provider.get("REED_API_KEY")
-    logging.getLogger(__name__).info("reed key shape: len=%d prefix=%s", len(api_key), repr(api_key[:4]))
-    return ReedJobSource(api_key=api_key)
+    return ReedJobSource(api_key=secret_provider.get("REED_API_KEY"))
