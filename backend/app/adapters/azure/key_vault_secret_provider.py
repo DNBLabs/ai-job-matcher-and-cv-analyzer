@@ -86,6 +86,6 @@ class KeyVaultSecretProvider:
         validated = validate_secret_name(name)
         kv_name = _to_key_vault_name(validated)
         try:
-            return self._client.get_secret(kv_name).value
+            return self._client.get_secret(kv_name).value.strip()
         except ResourceNotFoundError as error:
             raise SecretNotFoundError(f"Secret not found: {kv_name}") from error
