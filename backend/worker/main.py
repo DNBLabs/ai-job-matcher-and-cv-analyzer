@@ -49,6 +49,9 @@ def startup_worker() -> str:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s [worker] %(message)s",
     )
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("azure").setLevel(logging.WARNING)
     logger.info("worker ready")
     return "ready"
 

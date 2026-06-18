@@ -4,6 +4,7 @@ All tests use MagicMock to replace the injected httpx.Client — no live network
 """
 
 import json
+import logging
 import pathlib
 from unittest.mock import MagicMock
 
@@ -439,6 +440,24 @@ def test_fetch_listings_error_never_leaks_credentials() -> None:
     blob = f"{exc_info.value}|{exc_info.value.reason}"
     assert "my_secret_id" not in blob
     assert "my_secret_key" not in blob
+
+
+def test_fetch_listings_does_not_log_credentials(caplog: pytest.LogCaptureFixture) -> None:
+    """No log record emitted during fetch_listings must contain app_id= or app_key=.
+
+    Guards against accidental credential leak via the adapter's own log statements
+    (AC4: regression test with mock httpx client + caplog at DEBUG).
+    """
+    fixture = _load_fixture()
+    adzuna = AdzunaJobSource(app_id="secret_id", app_key="secret_key")
+    adzuna._http_client = _success_mock(fixture)
+
+    with caplog.at_level(logging.DEBUG):
+        adzuna.fetch_listings(_london_search())
+
+    for record in caplog.records:
+        assert "secret_id" not in record.message, f"app_id leaked in log: {record.message}"
+        assert "secret_key" not in record.message, f"app_key leaked in log: {record.message}"
 
 
 # ---------------------------------------------------------------------------
