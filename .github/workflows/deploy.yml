@@ -192,22 +192,26 @@ jobs:
 
       - name: Pin Container App revisions to the SHA image
         # Single revision mode -> updating the image creates a new revision and
-        # shifts 100% traffic to it. Source:
-        # https://learn.microsoft.com/en-us/cli/azure/containerapp#az-containerapp-update
+        # shifts 100% traffic to it. DEPLOY_REVISION changes every run so Azure
+        # always issues a new revision even when the image SHA is unchanged (e.g.
+        # secret-only reseed or rollback to an already-running SHA). Without it,
+        # a no-op image update produces no new revision and stale KV secrets persist.
+        # Source: https://learn.microsoft.com/en-us/cli/azure/containerapp#az-containerapp-update
         env:
           ACR: ${{ steps.tf.outputs.acr }}
           SHA: ${{ steps.resolve.outputs.sha }}
           RG: ${{ steps.tf.outputs.rg }}
           API_APP: ${{ steps.tf.outputs.api_app }}
           WORKER_APP: ${{ steps.tf.outputs.worker_app }}
+          DEPLOY_REVISION: ${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
           # containerapp is a dynamically-installed CLI extension; install without prompting.
           az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
           IMG="${ACR}/backend:${SHA}"
-          az containerapp update -n "${API_APP}"    -g "${RG}" --image "${IMG}" --output none
-          az containerapp update -n "${WORKER_APP}" -g "${RG}" --image "${IMG}" --output none
-          echo "Pinned ${API_APP} and ${WORKER_APP} to ${IMG}"
+          az containerapp update -n "${API_APP}"    -g "${RG}" --image "${IMG}" --set-env-vars "DEPLOY_REVISION=${DEPLOY_REVISION}" --output none
+          az containerapp update -n "${WORKER_APP}" -g "${RG}" --image "${IMG}" --set-env-vars "DEPLOY_REVISION=${DEPLOY_REVISION}" --output none
+          echo "Pinned ${API_APP} and ${WORKER_APP} to ${IMG} (revision suffix: ${DEPLOY_REVISION})"
 
       - name: Smoke test (API health)
         env:
