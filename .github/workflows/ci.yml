@@ -53,66 +53,11 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
 
-      - name: Infrastructure port contract tests (Task 1)
-        run: pytest tests/ports/ -v
-
-      - name: Domain logic and repository tests (Task 2)
-        run: pytest tests/domain/ -v
-
-      - name: Auth session tests (Task 3)
-        run: pytest tests/auth/test_sessions.py tests/auth/test_security_boundaries.py -v
-
-      - name: Google OAuth sign-in tests (Task 4)
-        # Mocked Google token/userinfo endpoints; no GOOGLE_OAUTH_* secrets required in CI.
-        # Source: https://docs.github.com/en/actions/security-for-github-actions/security-guides/about-secrets
-        run: pytest tests/auth/test_google_oauth.py -v
-
-      - name: Magic link sign-in tests (Task 5)
-        run: pytest tests/auth/test_magic_link.py -v
-
-      - name: Sign-out, ingress rate limits, and IDOR routing tests (Task 6)
-        run: pytest tests/auth/test_logout.py tests/auth/test_ingress_rate_limit.py tests/auth/test_idor_routing.py -v
-
-      - name: CV upload and PDF validation tests (Task 7)
-        run: pytest tests/validation/test_pdf.py tests/cvs/test_cv_upload.py -v
-
-      - name: CV list, delete, and PDF parse tests (Task 8)
-        run: pytest tests/services/test_pdf_parser.py tests/cvs/test_cv_list_delete.py -v
-
-      - name: Sync Suggested Job Titles tests (Task 9)
-        # Fake LLM in tests; no OPENAI_API_KEY required in CI.
-        run: pytest tests/services/test_title_suggestion_service.py tests/cvs/test_suggest_titles.py -v
-
-      - name: Analysis orchestrator tests (Task 10)
-        run: pytest tests/domain/test_job_search.py tests/services/test_analysis_orchestrator.py -v
-
-      - name: Run API endpoint tests (Task 11)
-        run: pytest tests/runs/test_runs_api.py -v
-
-      - name: Worker consumer and handler tests (Task 12)
-        run: pytest tests/test_worker.py -v
-
-      - name: Job Source registry and Adzuna adapter tests (Task 13)
-        run: pytest tests/job_sources/test_adzuna.py -v
-
-      - name: Scoring service tests (Task 14)
-        # Fake scoring LLM in tests; no OPENAI_API_KEY required in CI.
-        run: pytest tests/services/test_scoring_service.py -v
-
-      - name: Apply database migrations (Task 2)
+      - name: Apply database migrations
         # Source: https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration
         run: alembic upgrade head
 
-      - name: Auth session Postgres smoke (Task 3)
-        # Validates sessions table on ephemeral Postgres after Alembic.
-        # Source: https://docs.github.com/en/actions/using-containerized-services/creating-postgresql-service-containers
-        run: pytest tests/auth/test_sessions_postgres.py -v
-
-      - name: Azure production adapter tests (Task 27)
-        # Mocked Azure SDK clients + fake MI credential; no Azure secrets in CI.
-        run: pytest tests/adapters/ -v
-
-      - name: Full backend test suite
+      - name: Run full test suite
         run: pytest -v
 
   frontend:
@@ -161,7 +106,7 @@ jobs:
         run: docker compose config --quiet
 
       - name: Build API and worker images
-        run: docker compose build
+        run: docker buildx bake -f docker-compose.yml --set "*.cache-from=type=gha" --set "*.cache-to=type=gha,mode=max" --load
 
   terraform:
     name: Terraform validate
@@ -178,6 +123,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache Terraform providers
+        uses: actions/cache@v4
+        with:
+          path: infra/${{ matrix.stack }}/.terraform
+          key: terraform-${{ matrix.stack }}-${{ hashFiles(format('infra/{0}/.terraform.lock.hcl', matrix.stack)) }}
+          restore-keys: |
+            terraform-${{ matrix.stack }}-
 
       - name: Set up Terraform
         # Source: https://github.com/hashicorp/setup-terraform
@@ -208,8 +161,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build backend image
-        run: docker build -t ai-job-matcher-backend:${{ github.sha }} ./backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          tags: ai-job-matcher-backend:${{ github.sha }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Scan image for Critical CVEs with a published fix
         # PINNED v0.36.0 — latest release.
