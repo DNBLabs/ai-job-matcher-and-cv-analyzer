@@ -103,7 +103,7 @@ class AnalysisRunPipeline:
             self._finalize(analysis_run, session, scored=[], finops={}, source_failures=[])
             return
 
-        listings, source_failures = self._fetch_all_listings(analysis_run)
+        listings, source_failures, source_successes = self._fetch_all_listings(analysis_run)
 
         analysis_run.status = AnalysisRunStatus.SCORING
         session.commit()
@@ -116,12 +116,13 @@ class AnalysisRunPipeline:
             scored=result.scored,
             finops=result.finops.model_dump(),
             source_failures=source_failures,
+            source_successes=source_successes,
         )
 
     def _fetch_all_listings(
         self, analysis_run: AnalysisRun
-    ) -> tuple[list[NormalisedListing], list[dict]]:
-        """Fetch from all registered sources, deduping by URL and collecting failures.
+    ) -> tuple[list[NormalisedListing], list[dict], list[str]]:
+        """Fetch from all registered sources, deduping by URL and collecting outcomes.
 
         Each source is tried independently; a JobSourceError from one source does
         not prevent fetching from the others. Listings with the same URL across
@@ -131,17 +132,21 @@ class AnalysisRunPipeline:
             analysis_run: Run providing the persisted Job Search criteria.
 
         Returns:
-            tuple: (merged_listings, source_failures) where source_failures is a list
-                of dicts with ``source`` and ``reason`` keys for any failed sources.
+            tuple: (merged_listings, source_failures, source_successes) where
+                source_failures lists dicts with ``source`` and ``reason`` keys for
+                failed sources, and source_successes lists names of sources that
+                responded without error (even when they returned 0 listings).
         """
         job_search = JobSearch.model_validate(analysis_run.job_search_json)
         all_listings: list[NormalisedListing] = []
         seen_urls: set[str] = set()
         failures: list[dict] = []
+        successes: list[str] = []
 
         for source_name, source in self._job_sources:
             try:
                 listings = source.fetch_listings(job_search, max_results=self._max_listings)
+                successes.append(source_name)
                 for listing in listings:
                     if listing.url not in seen_urls:
                         seen_urls.add(listing.url)
@@ -160,7 +165,7 @@ class AnalysisRunPipeline:
                 )
                 failures.append({"source": source_name, "reason": "scrape_failed"})
 
-        return all_listings, failures
+        return all_listings, failures, successes
 
     @staticmethod
     def _load_cv_text(analysis_run: AnalysisRun, session: Session) -> str | None:
@@ -189,6 +194,7 @@ class AnalysisRunPipeline:
         scored: list[ScoredListing],
         finops: dict,
         source_failures: list[dict],
+        source_successes: list[str] | None = None,
     ) -> None:
         """Persist results and FinOps, then set the terminal status and commit.
 
@@ -198,10 +204,18 @@ class AnalysisRunPipeline:
             scored: Scored listings to persist (deduped by source + external id).
             finops: Per-run FinOps summary to store on ``finops_json``.
             source_failures: Failed sources from ``_fetch_all_listings``.
+            source_successes: Source names that responded without error (may be empty).
         """
         persisted = self._persist_results(analysis_run, session, scored)
         analysis_run.finops_json = finops
-        analysis_run.source_failures_json = {"failures": source_failures} if source_failures else None
+        successes = source_successes or []
+        if source_failures or successes:
+            analysis_run.source_failures_json = {
+                "failures": source_failures,
+                "successes": successes,
+            }
+        else:
+            analysis_run.source_failures_json = None
         analysis_run.status = resolve_terminal_status(scored_listing_count=persisted)
         analysis_run.completed_at = datetime.now(UTC)
         session.commit()

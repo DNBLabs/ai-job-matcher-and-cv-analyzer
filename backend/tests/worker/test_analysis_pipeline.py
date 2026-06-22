@@ -391,6 +391,67 @@ def test_pipeline_email_failure_does_not_change_terminal_status(
     assert len(JobMatchResultRepository(api_test_db_session).list_for_run(run.id)) == 1
 
 
+def test_pipeline_records_source_success_when_source_ok_with_zero_listings(
+    api_test_db_session: Session,
+) -> None:
+    """A source that responds with 0 listings is recorded in source_failures_json successes."""
+    user = _create_user(api_test_db_session)
+    cv = _create_cv(api_test_db_session, user)
+    run = _create_queued_run(api_test_db_session, user, cv)
+    adzuna = FakeJobSource(listings=[])  # responds OK but returns nothing
+    reed = FakeJobSource(error=JobSourceError("reed 403"))
+    llm = FakeScoringLlmClient(behaviours=[_output()])
+
+    _multi_pipeline([("adzuna", adzuna), ("reed", reed)], llm).run(run, api_test_db_session)
+
+    api_test_db_session.refresh(run)
+    assert run.status == AnalysisRunStatus.FAILED
+    meta = run.source_failures_json
+    assert meta is not None
+    assert "adzuna" in meta["successes"]
+    assert meta["failures"][0]["source"] == "reed"
+
+
+def test_pipeline_classifies_mixed_source_run_as_no_jobs_found(
+    api_test_db_session: Session,
+) -> None:
+    """Mixed OK+fail run is classified NO_JOBS_FOUND by the domain classifier."""
+    from app.domain.run_outcomes import RunFailureReason, classify_run_failure
+
+    user = _create_user(api_test_db_session)
+    cv = _create_cv(api_test_db_session, user)
+    run = _create_queued_run(api_test_db_session, user, cv)
+    adzuna = FakeJobSource(listings=[])
+    reed = FakeJobSource(error=JobSourceError("reed unavailable"))
+    llm = FakeScoringLlmClient(behaviours=[_output()])
+
+    _multi_pipeline([("adzuna", adzuna), ("reed", reed)], llm).run(run, api_test_db_session)
+
+    api_test_db_session.refresh(run)
+    reason = classify_run_failure(run.status, run.source_failures_json)
+    assert reason is RunFailureReason.NO_JOBS_FOUND
+
+
+def test_pipeline_classifies_all_source_fail_as_scrape_failed(
+    api_test_db_session: Session,
+) -> None:
+    """When all sources fail the classifier returns SCRAPE_FAILED (not NO_JOBS_FOUND)."""
+    from app.domain.run_outcomes import RunFailureReason, classify_run_failure
+
+    user = _create_user(api_test_db_session)
+    cv = _create_cv(api_test_db_session, user)
+    run = _create_queued_run(api_test_db_session, user, cv)
+    adzuna = FakeJobSource(error=JobSourceError("adzuna down"))
+    reed = FakeJobSource(error=JobSourceError("reed down"))
+    llm = FakeScoringLlmClient(behaviours=[_output()])
+
+    _multi_pipeline([("adzuna", adzuna), ("reed", reed)], llm).run(run, api_test_db_session)
+
+    api_test_db_session.refresh(run)
+    reason = classify_run_failure(run.status, run.source_failures_json)
+    assert reason is RunFailureReason.SCRAPE_FAILED
+
+
 def test_pipeline_dedupes_same_url_across_sources(api_test_db_session: Session) -> None:
     """A URL returned by both sources is only scored and persisted once."""
     user = _create_user(api_test_db_session)
