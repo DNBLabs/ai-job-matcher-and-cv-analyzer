@@ -116,7 +116,146 @@ az containerapp exec -n ca-ai-job-matcher-api -g rg-ai-job-matcher-prod \
 
 Run once after the first successful deploy, and after any migration is added.
 
-## 3. Incident response
+## 3. Observability
+
+### 3a. Log Analytics workspace
+
+ACA stdout is ingested automatically into the Log Analytics workspace
+(`log-ai-job-matcher-prod`) via `log_analytics_workspace_id` on the container
+app environment (`infra/app/containerapps.tf:47`, `infra/app/observability.tf`).
+Logs land in `ContainerAppConsoleLogs_CL`; system events in
+`ContainerAppSystemLogs_CL`.
+
+**Cost**: PerGB2018 SKU, 30-day retention. At demo traffic (< 1 GB/month) the
+bill is negligible (< £2/month).
+
+**Azure Cost Management link** — view the resource group spend:
+
+```
+https://portal.azure.com/#blade/Microsoft_Azure_CostManagement/Menu/costanalysis
+```
+
+Navigate to **Subscription → Resource group → rg-ai-job-matcher-prod** to
+filter by resource group.
+
+### 3b. Structured log events (app code)
+
+The API and worker emit JSON-formatted event lines for key metrics. Query them
+in Log Analytics with KQL:
+
+```kql
+// 5xx errors in the last hour
+ContainerAppConsoleLogs_CL
+| where TimeGenerated > ago(1h)
+| where Log_s contains '"event": "http_5xx"'
+| project TimeGenerated, Log_s
+
+// 429 rate-limit hits
+ContainerAppConsoleLogs_CL
+| where TimeGenerated > ago(1h)
+| where Log_s contains '"event": "http_429"'
+| project TimeGenerated, Log_s
+
+// Scrape failures
+ContainerAppConsoleLogs_CL
+| where TimeGenerated > ago(1h)
+| where Log_s contains '"event": "scrape_failure"'
+| project TimeGenerated, Log_s
+
+// Queue processing latency (worker)
+ContainerAppConsoleLogs_CL
+| where TimeGenerated > ago(1h)
+| where Log_s contains '"event": "queue_message_processed"'
+| project TimeGenerated, Log_s
+```
+
+No PII appears in these events — no user IDs, CV text, job titles, or email
+addresses.
+
+## 4. Alerts
+
+All alerts notify `var.owner_email` via the `ag-owner-ai-job-matcher-prod`
+action group (`infra/app/monitoring.tf`).
+
+### 4a. Budget alerts
+
+Two monthly budgets on `rg-ai-job-matcher-prod`:
+
+| Resource | Amount | Threshold | Type |
+|---|---|---|---|
+| `budget-ai-job-matcher-prod-warning` | £60 | 100% actual | Email on trigger |
+| `budget-ai-job-matcher-prod-critical` | £75 | 100% actual | Email on trigger |
+
+**Verify post-deploy:**
+
+```bash
+RG=$(terraform -chdir=infra/app output -raw resource_group_name)
+az consumption budget list --resource-group "$RG" --query "[].{name:name,amount:amount}"
+```
+
+**Response on trigger:**
+
+1. Open Azure Cost Management and identify the high-spend service (likely
+   OpenAI scoring or PostgreSQL compute).
+2. If within the £60–£75 band: review Analysis Run frequency and scoring costs;
+   consider raising the per-run listing cap or reducing scoring model calls.
+3. If the £75 budget fires: scale down Container App replicas and suspend
+   non-critical analysis runs until spend is confirmed under control.
+
+### 4b. Service Bus queue-depth alert
+
+Alert rule: `alert-sb-queue-depth-ai-job-matcher-prod`
+
+Fires when `ActiveMessages` on the `analysis-runs` queue exceeds **10 for 15
+minutes** (evaluated every 5 minutes). Severity 2 (Warning).
+
+**Verify post-deploy:**
+
+```bash
+RG=$(terraform -chdir=infra/app output -raw resource_group_name)
+az monitor metrics alert list --resource-group "$RG" \
+  --query "[?contains(name,'sb-queue-depth')].{name:name,enabled:enabled}"
+```
+
+**Response on trigger:**
+
+1. Check whether the worker Container App is running (`az containerapp show`).
+2. Inspect worker logs for poison-message loops or scoring timeouts.
+3. If the queue is genuinely backed up, scale the worker min replicas to 1
+   temporarily:
+   ```bash
+   az containerapp update -n ca-ai-job-matcher-worker -g "$RG" \
+     --min-replicas 1
+   ```
+4. Once the queue clears, revert to 0 min replicas.
+
+## 5. OpenAI FinOps
+
+### 5a. Daily spend alert (manual — OpenAI dashboard)
+
+OpenAI does not expose a Cost Management–compatible API, so the £2/day alert
+cannot be provisioned by Terraform. Set it up once:
+
+1. Log in to [platform.openai.com](https://platform.openai.com).
+2. Go to **Settings → Billing → Usage limits**.
+3. Set **Soft limit** to **£2/day** (email notification only).
+4. Set **Hard limit** to **£5/day** (API requests blocked above this).
+
+These limits apply at the organisation level and cover all API calls, including
+GPT-4o scoring and GPT-4o-mini title suggestions.
+
+### 5b. Per-run cost tracking
+
+FinOps data is logged to `finops_json` on each `analysis_run` row. Query prod
+Postgres via `az containerapp exec`:
+
+```bash
+az containerapp exec -n ca-ai-job-matcher-api -g rg-ai-job-matcher-prod \
+  --command "psql \$DATABASE_URL -c \
+  \"SELECT id, finops_json->>'estimated_usd' AS usd FROM analysis_run ORDER BY created_at DESC LIMIT 10;\""
+```
+
+## 6. Incident response
 
 See `docs/security/THREAT_MODEL.md` §8 for OpenAI key compromise, session
 hijack, malicious image, and admin-account compromise procedures.
