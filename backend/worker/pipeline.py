@@ -10,6 +10,7 @@ ever logged (CONTEXT §3).
 """
 
 import hashlib
+import json
 import logging
 from datetime import UTC, datetime
 
@@ -153,6 +154,9 @@ class AnalysisRunPipeline:
                     source_name,
                     analysis_run.id,
                     error.reason or "unknown",
+                )
+                logger.warning(
+                    json.dumps({"event": "scrape_failure", "source": source_name, "reason": error.reason or "unknown"})
                 )
                 failures.append({"source": source_name, "reason": "scrape_failed"})
 

@@ -1,8 +1,10 @@
 """Worker entrypoint — consumes Analysis Run jobs from the queue and processes them."""
 
+import json
 import logging
 import signal
 import sys
+import time
 from typing import Any
 
 from app.adapters.factory import (
@@ -89,6 +91,7 @@ def main() -> None:
             message: Deserialized JSON payload delivered by the job queue.
         """
         session = session_factory()
+        _start = time.monotonic()
         try:
             handle_analysis_run_message(message, session, pipeline=pipeline)
         except Exception:
@@ -98,6 +101,9 @@ def main() -> None:
             session.rollback()
         finally:
             session.close()
+        logger.info(
+            json.dumps({"event": "queue_message_processed", "latency_ms": int((time.monotonic() - _start) * 1000)})
+        )
 
     logger.info("worker consuming from queue")
     job_queue.consume(process_message)

@@ -1,5 +1,7 @@
 """API ingress rate-limit middleware backed by Postgres counters."""
 
+import json
+import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
@@ -16,6 +18,8 @@ from app.auth.rate_limit import (
     api_ingress_ip_bucket,
     retry_after_seconds,
 )
+
+logger = logging.getLogger(__name__)
 
 RequestResponseEndpoint = Callable[[Request], Awaitable[Response]]
 _EXEMPT_PATHS = frozenset({"/health"})
@@ -65,6 +69,9 @@ class IngressRateLimitMiddleware(BaseHTTPMiddleware):
             retry_after = retry_after_seconds(
                 now=datetime.now(UTC),
                 window=API_INGRESS_RATE_WINDOW,
+            )
+            logger.warning(
+                json.dumps({"event": "http_429", "path": request.url.path})
             )
             return rate_limit_response(retry_after_seconds=retry_after)
         finally:

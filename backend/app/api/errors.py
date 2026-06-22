@@ -1,5 +1,6 @@
 """Centralized HTTP error handlers and response helpers."""
 
+import json
 import logging
 
 from fastapi import FastAPI, Request
@@ -48,6 +49,9 @@ def register_exception_handlers(application: FastAPI, settings: Settings) -> Non
         """
         _ = settings
         logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+        logger.error(
+            json.dumps({"event": "http_5xx", "method": request.method, "path": request.url.path, "status_code": 500})
+        )
         return JSONResponse(
             status_code=500,
             content={"detail": "Internal server error"},
