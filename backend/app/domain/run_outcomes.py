@@ -44,7 +44,13 @@ def classify_run_failure(
     """
     if status is not AnalysisRunStatus.FAILED:
         return None
-    failures = (source_failures_json or {}).get("failures") or []
+    payload = source_failures_json or {}
+    successes = payload.get("successes") or []
+    failures = payload.get("failures") or []
+    # At least one source responded OK (even with 0 results) → search was genuinely empty
+    if successes:
+        return RunFailureReason.NO_JOBS_FOUND
+    # Every source failed with an error → scraping problem
     if failures:
         return RunFailureReason.SCRAPE_FAILED
     return RunFailureReason.NO_JOBS_FOUND
