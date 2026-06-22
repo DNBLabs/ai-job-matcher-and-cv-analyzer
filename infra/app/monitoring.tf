@@ -25,7 +25,9 @@ resource "azurerm_consumption_budget_resource_group" "warning" {
   time_grain        = "Monthly"
 
   time_period {
-    start_date = "2026-01-01T00:00:00Z"
+    # Azure enforces: start_date >= first day of the current billing month.
+    # Update this if the budget is destroyed and re-created in a later month.
+    start_date = "2026-06-01T00:00:00Z"
   }
 
   notification {
@@ -46,7 +48,9 @@ resource "azurerm_consumption_budget_resource_group" "critical" {
   time_grain        = "Monthly"
 
   time_period {
-    start_date = "2026-01-01T00:00:00Z"
+    # Azure enforces: start_date >= first day of the current billing month.
+    # Update this if the budget is destroyed and re-created in a later month.
+    start_date = "2026-06-01T00:00:00Z"
   }
 
   notification {
