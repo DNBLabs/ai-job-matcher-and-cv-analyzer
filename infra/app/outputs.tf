@@ -65,3 +65,13 @@ output "worker_identity_principal_id" {
   description = "Object (principal) ID of the worker MI — target for the out-of-band Graph Mail.Send grant (docs/ops/RUNBOOK.md)."
   value       = azurerm_user_assigned_identity.worker.principal_id
 }
+
+output "frontend_custom_fqdn" {
+  description = "Custom domain for the SPA (canonical frontend URL, ADR-0011)."
+  value       = var.frontend_custom_domain
+}
+
+output "api_custom_fqdn" {
+  description = "Custom domain registered on the API Container App (ACA managed cert, ADR-0011)."
+  value       = var.api_custom_domain
+}

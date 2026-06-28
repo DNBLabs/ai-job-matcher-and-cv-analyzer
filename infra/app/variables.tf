@@ -80,3 +80,20 @@ variable "operator_ip_rules" {
   type        = list(string)
   default     = []
 }
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare zone ID for dnblabs.co.uk. Required — passed via -var or CLOUDFLARE_ZONE_ID secret in CI."
+  type        = string
+}
+
+variable "frontend_custom_domain" {
+  description = "Custom domain for the SPA (SWA). Canonical frontend URL used in ALLOWED_ORIGINS and POST_AUTH_REDIRECT_URL."
+  type        = string
+  default     = "www.getmeajob.dnblabs.co.uk"
+}
+
+variable "api_custom_domain" {
+  description = "Custom domain for the API Container App. Used for the ACA custom domain + managed cert only; api_public_url is NOT changed here."
+  type        = string
+  default     = "api.getmeajob.dnblabs.co.uk"
+}

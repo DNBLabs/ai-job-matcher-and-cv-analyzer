@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.0"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 5.0"
+    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.0"
@@ -46,5 +50,7 @@ provider "azurerm" {
   # Azure AD for blob data-plane calls (post-create poll, container management).
   storage_use_azuread = true
 }
+
+provider "cloudflare" {}
 
 provider "random" {}

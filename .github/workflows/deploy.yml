@@ -127,12 +127,15 @@ jobs:
         # as Terraform's desired state (so apply does not strip the rule added
         # above). The IP is removed again in the always() cleanup step below.
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
           RUNNER_IP: ${{ steps.ip.outputs.ip }}
         run: |
           terraform apply -auto-approve -input=false \
             -var "owner_email=${OWNER_EMAIL}" \
-            -var "operator_ip_rules=[\"${RUNNER_IP}/32\"]"
+            -var "operator_ip_rules=[\"${RUNNER_IP}/32\"]" \
+            -var "cloudflare_zone_id=${CLOUDFLARE_ZONE_ID}"
 
       - name: Read stack outputs
         id: tf

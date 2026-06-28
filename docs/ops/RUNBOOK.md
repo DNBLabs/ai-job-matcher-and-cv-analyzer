@@ -259,3 +259,58 @@ az containerapp exec -n ca-ai-job-matcher-api -g rg-ai-job-matcher-prod \
 
 See `docs/security/THREAT_MODEL.md` §8 for OpenAI key compromise, session
 hijack, malicious image, and admin-account compromise procedures.
+
+## 7. Custom domains (Cloudflare DNS + ACA managed cert)
+
+Implements ADR-0011: `www.getmeajob.dnblabs.co.uk` (SWA) and
+`api.getmeajob.dnblabs.co.uk` (ACA). Both are provisioned in a single
+`terraform apply`; no manual DNS edits are needed after bootstrap.
+
+### 7a. Before first deploy with this change (one-time operator steps)
+
+1. **Create a Cloudflare API token** in the Cloudflare dashboard
+   (My Profile → API Tokens → Create Token):
+   - Template: *Edit zone DNS*
+   - Permissions: `Zone / DNS / Edit` and `Zone / Zone / Read`
+   - Zone resources: Include → Specific zone → `dnblabs.co.uk`
+   - Do **not** add broader permissions; the token is scoped to DNS edits only.
+
+2. **Add GitHub Actions secrets** (Settings → Secrets and variables → Actions):
+
+   | GitHub secret | Value |
+   |---|---|
+   | `CLOUDFLARE_API_TOKEN` | Token created in step 1 |
+   | `CLOUDFLARE_ZONE_ID` | Zone ID from Cloudflare dashboard (Overview → right panel → Zone ID) for `dnblabs.co.uk` |
+
+   Until both secrets are set, the `Terraform apply` step will fail with an
+   authentication error from the Cloudflare provider.
+
+### 7b. Deployment sequencing
+
+1. **Single `terraform apply`** creates all four resources:
+   - `cloudflare_dns_record.frontend_cname` — `www` CNAME → SWA hostname
+   - `cloudflare_dns_record.api_cname` — `api` CNAME → ACA native FQDN
+   - `azurerm_static_web_app_custom_domain.frontend` — registers and validates with Azure
+   - `azurerm_container_app_custom_domain.api` — registers with Azure; cert provisioned async
+
+2. **SWA cert** (for `www.getmeajob.dnblabs.co.uk`) provisions within minutes;
+   the site should be reachable over HTTPS shortly after apply.
+
+3. **ACA managed cert** (for `api.getmeajob.dnblabs.co.uk`) is asynchronous.
+   Confirm it is `Approved` before merging the follow-on issue that promotes
+   `api_public_url` to the custom domain:
+
+   ```bash
+   az containerapp show \
+     -n ca-ai-job-matcher-api \
+     -g rg-ai-job-matcher-prod \
+     --query "properties.customDomains[?name=='api.getmeajob.dnblabs.co.uk'].bindingType" \
+     -o tsv
+   ```
+
+   Expected value: `SniEnabled` (Azure sets this once the cert is `Approved`).
+   If the cert is still provisioning, wait a few minutes and re-check.
+
+   > **Important:** Do NOT merge the issue that changes `api_public_url` to
+   > `api.getmeajob.dnblabs.co.uk` until the cert above is confirmed `Approved`.
+   > Changing `api_public_url` before then will break `GOOGLE_OAUTH_REDIRECT_URI`.
