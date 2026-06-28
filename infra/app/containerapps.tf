@@ -29,7 +29,7 @@ locals {
   # redirect validation (config.py). It resolves to the explicit override if set,
   # else the SWA's default hostname, so the cross-origin auth wiring is correct
   # the moment the stack applies. (Pre-SWA stacks fell back to the API origin.)
-  api_public_url = "https://ca-${var.project}-api.${azurerm_container_app_environment.main.default_domain}"
+  api_public_url = "https://${var.api_custom_domain}"
   frontend_url   = "https://${var.frontend_custom_domain}"
 
   # Full SQLAlchemy URL. Nothing assembles one from POSTGRES_* parts, and both the

@@ -316,3 +316,26 @@ Implements ADR-0011: `www.getmeajob.dnblabs.co.uk` (SWA) and
    > **Important:** Do NOT merge the issue that changes `api_public_url` to
    > `api.getmeajob.dnblabs.co.uk` until the cert above is confirmed `SniEnabled`.
    > Changing `api_public_url` before then will break `GOOGLE_OAUTH_REDIRECT_URI`.
+
+### 7c. Google Console OAuth redirect URI (pre-deploy HITL gate for Issue #74)
+
+**This step is a hard pre-deploy gate. Merge must not happen until it is complete.**
+Merging without it will set `GOOGLE_OAUTH_REDIRECT_URI` to `https://api.getmeajob.dnblabs.co.uk/auth/google/callback`
+but Google will reject the OAuth callback with `redirect_uri_mismatch` — all users will be blocked from signing in.
+
+#### Before merging the PR
+
+1. Navigate to [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services** → **Credentials** → **OAuth 2.0 Client IDs** → select the client for this project.
+2. Under **Authorized redirect URIs**, click **Add URI** and enter:
+   ```
+   https://api.getmeajob.dnblabs.co.uk/auth/google/callback
+   ```
+3. Click **Save**. Confirm the new URI appears in the list before approving or merging the PR.
+4. **Do not remove** the existing ACA native FQDN callback URI (e.g. `https://ca-ai-job-matcher-api.<aca-env>.azurecontainerapps.io/auth/google/callback`) — keep it as a belt-and-braces fallback.
+
+#### After deploy
+
+1. Visit `https://www.getmeajob.dnblabs.co.uk` and click **Sign in with Google**.
+2. Complete the OAuth flow. Verify you land on `https://www.getmeajob.dnblabs.co.uk/dashboard` with no `redirect_uri_mismatch` error.
+3. Sign in via magic link and inspect the `Set-Cookie` response header — confirm it shows `SameSite=Lax` and **not** `SameSite=None`.
+4. Start an Analysis Run. When the completion email arrives, confirm the deep link uses `https://www.getmeajob.dnblabs.co.uk` (not the raw SWA hostname).

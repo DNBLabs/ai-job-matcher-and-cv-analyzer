@@ -148,6 +148,7 @@ jobs:
             echo "worker_app=$(terraform output -raw worker_app_name)"
             echo "kv=$(terraform output -raw key_vault_name)"
             echo "api_fqdn=$(terraform output -raw api_fqdn)"
+            echo "api_custom_fqdn=$(terraform output -raw api_custom_fqdn)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Sync Key Vault secret values from GitHub secrets
@@ -232,6 +233,18 @@ jobs:
           done
           echo "API health check failed after retries"; exit 1
 
+      - name: Smoke test (custom API domain health)
+        run: |
+          set -euo pipefail
+          # Verify the custom domain resolves and the cert is valid post-deploy.
+          for i in 1 2 3 4 5; do
+            if curl -fsS --max-time 15 "https://api.getmeajob.dnblabs.co.uk/health" >/dev/null; then
+              echo "custom domain health OK"; exit 0
+            fi
+            echo "attempt $i failed; waiting"; sleep 15
+          done
+          echo "Custom domain health check failed after retries"; exit 1
+
       - name: Set up Node.js for the SPA build
         uses: actions/setup-node@v4
         with:
@@ -244,7 +257,7 @@ jobs:
         # API's public URL into the bundle so the browser calls the API directly.
         working-directory: frontend
         env:
-          VITE_API_BASE_URL: https://${{ steps.tf.outputs.api_fqdn }}
+          VITE_API_BASE_URL: https://${{ steps.tf.outputs.api_custom_fqdn }}
         run: |
           npm ci
           npm run build
