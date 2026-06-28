@@ -23,6 +23,17 @@ resource "cloudflare_dns_record" "api_cname" {
   ttl     = 3600
 }
 
+# Azure requires this TXT record at asuid.<subdomain> to prove domain ownership
+# before it will register the custom domain on the Container App. The value is
+# the Container App Environment's customDomainVerificationId.
+resource "cloudflare_dns_record" "api_domain_verification" {
+  zone_id = var.cloudflare_zone_id
+  name    = "asuid.${var.api_custom_domain}"
+  type    = "TXT"
+  content = azurerm_container_app_environment.main.custom_domain_verification_id
+  ttl     = 3600
+}
+
 # ---- SWA custom domain (cname-delegation: CNAME already points at SWA) -----
 
 resource "azurerm_static_web_app_custom_domain" "frontend" {
@@ -46,5 +57,5 @@ resource "azurerm_container_app_custom_domain" "api" {
     ignore_changes = [certificate_binding_type, container_app_environment_certificate_id]
   }
 
-  depends_on = [cloudflare_dns_record.api_cname]
+  depends_on = [cloudflare_dns_record.api_cname, cloudflare_dns_record.api_domain_verification]
 }
