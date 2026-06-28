@@ -23,13 +23,11 @@ locals {
   placeholder_image    = "mcr.microsoft.com/k8se/quickstart:latest"
   servicebus_namespace = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
 
-  # Public URLs. The API is reachable at <app>.<aca-env-default-domain>; the SPA
-  # is served from the Static Web App (ADR-0008). frontend_url drives CORS
-  # (ALLOWED_ORIGINS), the post-auth redirect, email deep links, and Settings'
-  # redirect validation (config.py). It resolves to the explicit override if set,
-  # else the SWA's default hostname, so the cross-origin auth wiring is correct
-  # the moment the stack applies. (Pre-SWA stacks fell back to the API origin.)
-  api_public_url = "https://ca-${var.project}-api.${azurerm_container_app_environment.main.default_domain}"
+  # Public URLs. api_public_url is the canonical API base (ADR-0011); it drives
+  # API_BASE_URL, GOOGLE_OAUTH_REDIRECT_URI, and VITE_API_BASE_URL in the SPA
+  # build. frontend_url drives CORS (ALLOWED_ORIGINS), post-auth redirect, and
+  # email deep links. Both now use the custom domains under dnblabs.co.uk.
+  api_public_url = "https://${var.api_custom_domain}"
   frontend_url   = "https://${var.frontend_custom_domain}"
 
   # Full SQLAlchemy URL. Nothing assembles one from POSTGRES_* parts, and both the

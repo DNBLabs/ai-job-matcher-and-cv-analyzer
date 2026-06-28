@@ -36,11 +36,12 @@ async def test_google_login_redirects_to_google_with_state_cookie(
     assert query["state"][0] in set_cookie
 
 
-def test_oauth_state_cookie_is_cross_site_secure_in_production(auth_settings) -> None:
-    """OAuth-state cookie is SameSite=Lax in dev and SameSite=None; Secure in prod.
+def test_oauth_state_cookie_is_same_site_secure_in_production(auth_settings) -> None:
+    """OAuth-state cookie is SameSite=Lax everywhere (ADR-0011).
 
-    The Google callback redirects back to the SWA origin, so the state cookie must
-    survive the cross-site round trip in production (ADR-0008).
+    Both the SPA (www.getmeajob.dnblabs.co.uk) and API (api.getmeajob.dnblabs.co.uk)
+    share the dnblabs.co.uk eTLD+1, so the state cookie is same-site and Lax is
+    sufficient. The Secure flag is still set in production (HTTPS only).
     """
     from starlette.responses import RedirectResponse
 
@@ -56,7 +57,7 @@ def test_oauth_state_cookie_is_cross_site_secure_in_production(auth_settings) ->
     prod_settings = auth_settings.model_copy(update={"app_env": "production"})
     apply_oauth_state_cookie(prod_response, "state-nonce", prod_settings)
     prod_cookie = prod_response.headers.get("set-cookie", "")
-    assert "samesite=none" in prod_cookie.lower()
+    assert "samesite=lax" in prod_cookie.lower()
     assert "Secure" in prod_cookie
 
 

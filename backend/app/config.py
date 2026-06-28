@@ -131,11 +131,11 @@ class Settings(BaseSettings):
     def cookie_samesite(self) -> str:
         """Return the SameSite attribute for auth cookies.
 
-        Production serves the SPA from a separate Static Web App origin, so auth
-        cookies cross sites and must be ``None`` to be sent on credentialed
-        cross-site requests. Local/dev stays on ``Lax`` (ADR-0008).
+        Both the SPA (www.getmeajob.dnblabs.co.uk) and API (api.getmeajob.dnblabs.co.uk)
+        share the dnblabs.co.uk eTLD+1, so cookies are same-site and Lax is both
+        correct and more secure than None (ADR-0011).
         """
-        return "none" if self.is_production else "lax"
+        return "lax"
 
     @property
     def cookie_secure(self) -> bool:
