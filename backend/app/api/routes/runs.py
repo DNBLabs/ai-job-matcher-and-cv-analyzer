@@ -18,7 +18,7 @@ from app.db.session import get_db_session
 from app.domain.analysis_run import AnalysisRunStatus
 from app.domain.divergence import InterviewLikelihood
 from app.domain.job_search import JobSearch
-from app.domain.run_outcomes import failure_message_for
+from app.domain.run_outcomes import classify_run_failure, failure_message_for
 from app.ports.job_queue import JobQueue
 from app.services.analysis_orchestrator import (
     AnalysisOrchestrator,
@@ -56,6 +56,7 @@ class RunResponse(BaseModel):
     job_search: JobSearchResponse
     source_failures: dict[str, Any] | None = None
     failure_message: str | None = None
+    failure_reason: str | None = None
     created_at: datetime
     completed_at: datetime | None = None
 
@@ -153,6 +154,11 @@ def _run_to_response(analysis_run: AnalysisRun) -> RunResponse:
         source_failures=analysis_run.source_failures_json,
         failure_message=failure_message_for(
             analysis_run.status, analysis_run.source_failures_json
+        ),
+        failure_reason=(
+            r.value
+            if (r := classify_run_failure(analysis_run.status, analysis_run.source_failures_json))
+            else None
         ),
         created_at=analysis_run.created_at,
         completed_at=analysis_run.completed_at,
