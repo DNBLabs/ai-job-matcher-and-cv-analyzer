@@ -80,7 +80,9 @@ export function Results() {
   }
 
   const hasSourceFailures =
-    run?.source_failures != null && Object.keys(run.source_failures).length > 0;
+    run?.status === "complete" &&
+    ((run.source_failures as { failures?: unknown[] } | null | undefined)
+      ?.failures?.length ?? 0) > 0;
 
   return (
     <main className="results-page">

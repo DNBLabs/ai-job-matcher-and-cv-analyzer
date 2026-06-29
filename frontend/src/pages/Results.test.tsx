@@ -161,10 +161,13 @@ describe("Results", () => {
     expect(screen.getByText("Staff Engineer")).toBeInTheDocument();
   });
 
-  it("shows a partial-failure banner when source_failures is present", async () => {
+  it("test_hasSourceFailures_partialFailure_bannerVisible", async () => {
     vi.mocked(getRun).mockResolvedValue({
       ...FIXTURE_RUN,
-      source_failures: { reed: "timeout" },
+      source_failures: {
+        failures: [{ source: "reed", reason: "timeout" }],
+        successes: ["adzuna"],
+      },
     });
     vi.mocked(getRunResults).mockResolvedValue(FIXTURE_RESULTS);
 
@@ -173,6 +176,73 @@ describe("Results", () => {
     await waitFor(() =>
       expect(screen.getByText(/some job sources failed/i)).toBeInTheDocument(),
     );
+  });
+
+  it("test_hasSourceFailures_fullSuccess_bannerNotVisible", async () => {
+    vi.mocked(getRun).mockResolvedValue({
+      ...FIXTURE_RUN,
+      source_failures: {
+        failures: [],
+        successes: ["adzuna", "reed"],
+      },
+    });
+    vi.mocked(getRunResults).mockResolvedValue(FIXTURE_RESULTS);
+
+    renderResults();
+
+    await waitFor(() => expect(screen.getByText("Senior Engineer")).toBeInTheDocument());
+    expect(screen.queryByText(/some job sources failed/i)).not.toBeInTheDocument();
+  });
+
+  it("test_hasSourceFailures_allSourcesFailed_bannerNotVisible", async () => {
+    vi.mocked(getRun).mockResolvedValue({
+      ...FIXTURE_RUN,
+      status: "failed",
+      source_failures: {
+        failures: [
+          { source: "adzuna", reason: "scrape_failed" },
+          { source: "reed", reason: "scrape_failed" },
+        ],
+        successes: [],
+      },
+    });
+    vi.mocked(getRunResults).mockResolvedValue([]);
+
+    renderResults();
+
+    await waitFor(() =>
+      expect(screen.queryByRole("status")).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/some job sources failed/i)).not.toBeInTheDocument();
+  });
+
+  it("test_hasSourceFailures_nullSourceFailures_bannerNotVisible", async () => {
+    vi.mocked(getRun).mockResolvedValue({
+      ...FIXTURE_RUN,
+      source_failures: null,
+    });
+    vi.mocked(getRunResults).mockResolvedValue(FIXTURE_RESULTS);
+
+    renderResults();
+
+    await waitFor(() => expect(screen.getByText("Senior Engineer")).toBeInTheDocument());
+    expect(screen.queryByText(/some job sources failed/i)).not.toBeInTheDocument();
+  });
+
+  it("test_hasSourceFailures_emptyFailuresEmptySuccesses_bannerNotVisible", async () => {
+    vi.mocked(getRun).mockResolvedValue({
+      ...FIXTURE_RUN,
+      source_failures: {
+        failures: [],
+        successes: [],
+      },
+    });
+    vi.mocked(getRunResults).mockResolvedValue(FIXTURE_RESULTS);
+
+    renderResults();
+
+    await waitFor(() => expect(screen.getByText("Senior Engineer")).toBeInTheDocument());
+    expect(screen.queryByText(/some job sources failed/i)).not.toBeInTheDocument();
   });
 
   it("shows an empty state when no results pass the active filters", async () => {
