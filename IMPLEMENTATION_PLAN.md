@@ -170,6 +170,12 @@ Repo scaffold + Docker Compose
 
 ---
 
+### Phase 9: UI Refresh (Epic #81)
+
+- [x] Issue #82: Install Tailwind CSS v3.4.x (PostCSS) + shadcn/ui tooling — `tailwindcss`/`postcss`/`autoprefixer` devDeps (no `@tailwindcss/vite`), `@fontsource/inter` runtime dep, `tailwind.config.ts` (`darkMode: 'class'`, `./src/**/*.{ts,tsx}` content), `postcss.config.js`, `index.css` with `@tailwind` directives + deep-violet `--primary`, pre-paint dark-class script in `index.html`, eight shadcn components copied under `src/components/ui/`, `@/` → `src/` alias in tsconfig + vite. No page className changes.
+
+---
+
 ## Detailed Tasks
 
 ---
@@ -932,6 +938,44 @@ Repo scaffold + Docker Compose
 - `infra/app/monitoring.tf`, `docs/ops/RUNBOOK.md`
 
 **Estimated scope:** Small
+
+---
+
+## Issue #82: Install Tailwind CSS + shadcn/ui tooling
+
+**Description:** Install and configure the Tailwind CSS v3.4.x PostCSS stack and copy shadcn/ui Radix components so subsequent UI refresh issues can use utility classes and Radix-based components without further setup. No page or component classNames are changed in this issue.
+
+**Parent / Epic:** Related to #81
+
+**Acceptance criteria:**
+- [x] Given a clean `npm ci && npm run build` in `frontend/`, when the build completes, then it exits 0 with no Tailwind configuration errors
+- [x] Given `frontend/src/index.css`, when inspected, then it contains `@tailwind base`, `@tailwind components`, `@tailwind utilities`, and a `--primary` CSS variable set to a deep violet hue
+- [x] Given `frontend/tailwind.config.ts`, when inspected, then `darkMode` is `'class'` and `content` includes `'./src/**/*.{ts,tsx}'`
+- [x] Given `frontend/postcss.config.js`, when inspected, then it registers `tailwindcss` and `autoprefixer` as plugins, and `frontend/package.json` devDependencies do NOT include `@tailwindcss/vite`
+- [x] Given `frontend/src/components/ui/`, when listed, then it contains at minimum: `button.tsx`, `card.tsx`, `badge.tsx`, `input.tsx`, `select.tsx`, `dropdown-menu.tsx`, `separator.tsx`, `alert.tsx`
+- [x] Given `frontend/index.html`, when the user's OS is set to dark mode and the page loads, then `<html>` has `class="dark"` before the first paint (no FOUC)
+- [x] Given `npm run test` in `frontend/`, when run, then all existing tests pass (no regressions from config changes)
+- [x] Invalid input: N/A — no user-facing input in this issue
+- [x] Auth: N/A — no auth boundary touched
+- [x] Downstream: N/A — no external service calls
+
+**Verification:**
+- [x] `npm ci && npm run build` in `frontend/` exits 0
+- [x] `npm run test` in `frontend/` green (existing suite)
+- [x] No `shadcn` runtime dependency; no `@tailwindcss/vite`; no Google Fonts `<link>` in `index.html`
+
+**Dependencies:** None
+
+**Files likely touched:**
+- `frontend/package.json`, `frontend/package-lock.json`
+- `frontend/tailwind.config.ts`, `frontend/postcss.config.js`
+- `frontend/src/index.css`, `frontend/index.html`
+- `frontend/src/components/ui/*`, `frontend/src/lib/utils.ts`
+- `frontend/tsconfig.json`, `frontend/tsconfig.app.json`, `frontend/vite.config.ts`
+
+**Estimated scope:** Small
+
+**Decision:** Tailwind v3.4.x via PostCSS (not v4 / `@tailwindcss/vite`) because ACs require `@tailwind` directives and `darkMode: 'class'` in a JS config file.
 
 ---
 
