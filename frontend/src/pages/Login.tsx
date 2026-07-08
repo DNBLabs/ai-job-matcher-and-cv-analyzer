@@ -1,5 +1,15 @@
 import { useState, type FormEvent } from "react";
 import { ApiError, googleLoginUrl, requestMagicLink } from "../api/client";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Separator } from "../components/ui/separator";
 
 type FormState =
   | { kind: "idle" }
@@ -39,43 +49,59 @@ export function Login() {
   }
 
   return (
-    <main className="auth-page">
-      <h1>Sign in</h1>
-      <p>Access your CVs and Analysis Runs.</p>
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <h1 className="text-2xl font-semibold leading-none tracking-tight text-foreground">
+            Sign in
+          </h1>
+          <CardDescription>Access your CVs and Analysis Runs.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button variant="outline" className="w-full text-foreground" asChild>
+            <a href={googleLoginUrl()}>Continue with Google</a>
+          </Button>
 
-      <a className="google-button" href={googleLoginUrl()}>
-        Continue with Google
-      </a>
+          <div className="flex items-center gap-2">
+            <Separator orientation="horizontal" className="flex-1" />
+            <span className="text-sm text-muted-foreground">or</span>
+            <Separator orientation="horizontal" className="flex-1" />
+          </div>
 
-      <div className="divider">or</div>
-
-      {state.kind === "sent" ? (
-        <p role="status">
-          Check your email — we sent a sign-in link to{" "}
-          <strong>{state.email}</strong> if it matches an account.
-        </p>
-      ) : (
-        <form onSubmit={handleSubmit} noValidate>
-          <label htmlFor="email">Email address</label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            autoComplete="email"
-          />
-          <button type="submit" disabled={state.kind === "submitting"}>
-            Email me a sign-in link
-          </button>
-          {state.kind === "error" && (
-            <p role="alert" className="form-error">
-              {state.message}
+          {state.kind === "sent" ? (
+            <p
+              role="status"
+              className="rounded-lg border bg-card p-4 text-sm text-card-foreground"
+            >
+              Check your email — we sent a sign-in link to{" "}
+              <strong>{state.email}</strong> if it matches an account.
             </p>
+          ) : (
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="email">Email address</label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
+                />
+              </div>
+              <Button type="submit" disabled={state.kind === "submitting"}>
+                Email me a sign-in link
+              </Button>
+              {state.kind === "error" && (
+                <Alert variant="destructive">
+                  <AlertDescription>{state.message}</AlertDescription>
+                </Alert>
+              )}
+            </form>
           )}
-        </form>
-      )}
+        </CardContent>
+      </Card>
     </main>
   );
 }
