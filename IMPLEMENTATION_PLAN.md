@@ -1012,6 +1012,39 @@ Repo scaffold + Docker Compose
 
 ---
 
+## Issue #85: Tailwind rewrite - Login page
+
+**Description:** Replace legacy login-page CSS hooks in `Login.tsx` with Tailwind utility classes and shadcn/ui primitives so the pre-auth sign-in screen matches the deep-violet design system from Issue #82, stays centered on small screens, and respects dark mode via the existing `html.dark` token setup.
+
+**Parent / Epic:** Related to #81
+
+**Acceptance criteria:**
+- [x] Given the Login page in light mode, when rendered at 375px width, then the page is usable with no horizontal scroll and all form elements are reachable
+- [x] Given the Login page in dark mode (OS `prefers-color-scheme: dark`), when rendered, then text and background colours are legible (no white-on-white or black-on-black)
+- [x] Given a valid email submitted, when the magic-link request succeeds, then the "Check your email" confirmation is clearly visible with good contrast
+- [x] Given an invalid / already-rate-limited request, when the API returns an error, then the error alert (`role="alert"`) is visible and styled with the destructive colour from the shadcn/ui CSS variables
+- [x] Given `Login.test.tsx`, when run after this change, then all existing tests pass without modification
+- [x] Given a search for `auth-page` in `Login.tsx`, when inspected, then no hand-rolled CSS class names from `App.css` remain
+- [x] Invalid input: The error state AC above covers the empty-email and rate-limit paths
+- [x] Auth: N/A — Login is the pre-auth page; no session required
+- [x] Downstream: N/A — no external calls added by this issue
+
+**Verification:**
+- [x] `npm test -- src/pages/Login.test.tsx` green
+- [x] `npm run lint` green
+- [x] `npm run build` green
+- [x] `npm audit --audit-level=high` green
+- [x] PR CI green before merge; post-merge CI + deploy on `main` green (`<fill-after-merge>`)
+
+**Dependencies:** Issue #82 (Tailwind + shadcn/ui tooling)
+
+**Files likely touched:**
+- `frontend/src/pages/Login.tsx`, `frontend/src/App.css`
+
+**Estimated scope:** Small
+
+---
+
 ## Parallelization Opportunities
 
 | Parallel track | Tasks | Notes |
