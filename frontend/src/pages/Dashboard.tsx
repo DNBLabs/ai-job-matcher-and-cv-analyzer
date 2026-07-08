@@ -20,7 +20,7 @@ import { RunHistory } from "../components/RunHistory";
  * scaled-to-zero API wakes.
  */
 export function Dashboard() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { status: warmup } = useApiWarmup();
   const [cvs, setCvs] = useState<Cv[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
@@ -64,12 +64,6 @@ export function Dashboard() {
     <main className="dashboard">
       <header className="dashboard-header">
         <h1>Dashboard</h1>
-        <nav className="dashboard-nav">
-          {user?.is_admin && <Link to="/admin">Admin</Link>}
-          <button type="button" onClick={() => void signOut()}>
-            Sign out
-          </button>
-        </nav>
       </header>
       <p>Signed in as {user?.email}</p>
 
