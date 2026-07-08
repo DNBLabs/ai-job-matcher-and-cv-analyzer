@@ -1,8 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import App from "../App";
 import { AuthProvider } from "../auth/AuthProvider";
 import { Dashboard } from "./Dashboard";
+import * as client from "../api/client";
 
 vi.mock("../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/client")>();
@@ -104,6 +106,66 @@ describe("Dashboard", () => {
     );
     expect(screen.getByRole("button", { name: /start a new run/i })).toBeDisabled();
     expect(screen.queryByRole("link", { name: /start a new run/i })).not.toBeInTheDocument();
+  });
+
+  it("test_dashboard_withNavbar_doesNotRenderDuplicateInlineSignOutButton", async () => {
+    vi.mocked(client.getCurrentUser).mockResolvedValue({
+      id: "u-1",
+      email: "alex@example.com",
+      is_admin: false,
+    });
+    vi.mocked(client.pingHealth).mockResolvedValue(true);
+    vi.mocked(client.listCvs).mockResolvedValue([]);
+    vi.mocked(client.listRuns).mockResolvedValue([]);
+    vi.mocked(client.getRunQuota).mockResolvedValue({
+      remaining: 3,
+      concurrent_blocked: false,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /dashboard/i })).toBeInTheDocument(),
+    );
+
+    const dashboardNav = document.querySelector(".dashboard-nav");
+    expect(dashboardNav).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation"),
+    ).not.toHaveClass("dashboard-nav");
+  });
+
+  it("test_dashboard_withNavbar_initialRender_hidesInlineSignOutAction", async () => {
+    vi.mocked(client.getCurrentUser).mockResolvedValue({
+      id: "u-1",
+      email: "alex@example.com",
+      is_admin: false,
+    });
+    vi.mocked(client.pingHealth).mockResolvedValue(true);
+    vi.mocked(client.listCvs).mockResolvedValue([]);
+    vi.mocked(client.listRuns).mockResolvedValue([]);
+    vi.mocked(client.getRunQuota).mockResolvedValue({
+      remaining: 3,
+      concurrent_blocked: false,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /dashboard/i })).toBeInTheDocument(),
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /^sign out$/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides the daily cap and keeps starting enabled for unlimited accounts", async () => {

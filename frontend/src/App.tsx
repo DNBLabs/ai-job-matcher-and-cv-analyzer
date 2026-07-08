@@ -9,6 +9,7 @@ import "./App.css";
 import { AdminRoute } from "./auth/AdminRoute";
 import { AuthProvider } from "./auth/AuthProvider";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { AppLayout } from "./components/AppLayout";
 import { Admin } from "./pages/Admin";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
@@ -26,7 +27,9 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <AppLayout>
+                <Dashboard />
+              </AppLayout>
             </ProtectedRoute>
           }
         />
@@ -34,7 +37,9 @@ function App() {
           path="/runs/new"
           element={
             <ProtectedRoute>
-              <NewRun />
+              <AppLayout>
+                <NewRun />
+              </AppLayout>
             </ProtectedRoute>
           }
         />
@@ -42,7 +47,9 @@ function App() {
           path="/runs/:runId/results"
           element={
             <ProtectedRoute>
-              <Results />
+              <AppLayout>
+                <Results />
+              </AppLayout>
             </ProtectedRoute>
           }
         />
@@ -50,7 +57,9 @@ function App() {
           path="/runs/:runId"
           element={
             <ProtectedRoute>
-              <RunDetail />
+              <AppLayout>
+                <RunDetail />
+              </AppLayout>
             </ProtectedRoute>
           }
         />
@@ -58,7 +67,9 @@ function App() {
           path="/admin"
           element={
             <AdminRoute>
-              <Admin />
+              <AppLayout>
+                <Admin />
+              </AppLayout>
             </AdminRoute>
           }
         />
