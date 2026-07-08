@@ -173,6 +173,7 @@ Repo scaffold + Docker Compose
 ### Phase 9: UI Refresh (Epic #81)
 
 - [x] Issue #82: Install Tailwind CSS v3.4.x (PostCSS) + shadcn/ui tooling — `tailwindcss`/`postcss`/`autoprefixer` devDeps (no `@tailwindcss/vite`), `@fontsource/inter` runtime dep, `tailwind.config.ts` (`darkMode: 'class'`, `./src/**/*.{ts,tsx}` content), `postcss.config.js`, `index.css` with `@tailwind` directives + deep-violet `--primary`, pre-paint dark-class script in `index.html`, eight shadcn components copied under `src/components/ui/`, `@/` → `src/` alias in tsconfig + vite. No page className changes.
+- [x] Issue #84: ResultCard expand/collapse breakdown toggle — `useState(false)` per card; collapsed summary (title, company, source, scores, divergence badge, apply link); shadcn `Button` toggle (`Show breakdown` / `Hide breakdown`); breakdown sections conditionally rendered (not CSS-hidden); legacy `result-card*` classes replaced with Tailwind utilities; 16 `ResultCard` Vitest tests green (#90).
 
 ---
 
@@ -976,6 +977,38 @@ Repo scaffold + Docker Compose
 **Estimated scope:** Small
 
 **Decision:** Tailwind v3.4.x via PostCSS (not v4 / `@tailwindcss/vite`) because ACs require `@tailwind` directives and `darkMode: 'class'` in a JS config file.
+
+---
+
+## Issue #84: ResultCard expand/collapse breakdown toggle
+
+**Description:** Add an expand/collapse toggle to `ResultCard` so Job Seekers can scan a ranked list of 50–100 results before drilling into breakdown detail. Breakdown data is already in the API response — no second API call on expand.
+
+**Parent / Epic:** Related to #81
+
+**Acceptance criteria:**
+- [x] Given a rendered `ResultCard`, when the component first mounts, then title, company, match score, interview likelihood, and apply link are visible, and no breakdown content (matched skills, skill gaps, red flags, talking points) is present in the DOM
+- [x] Given a collapsed `ResultCard`, when the user clicks "Show breakdown", then the four breakdown sections become visible and the button label changes to "Hide breakdown"
+- [x] Given an expanded `ResultCard`, when the user clicks "Hide breakdown", then the breakdown sections are removed from the DOM and the button label returns to "Show breakdown"
+- [x] Given a result with an empty `matched_skills` array, when expanded, then the matched skills section is not rendered (same conditional logic as today)
+- [x] Given a divergence badge scenario (score ≥ 70 + likelihood low), when collapsed, then the divergence badge is still visible (it stays in the header, not the breakdown)
+- [x] Given the existing `ResultCard.test.tsx` suite, when run after this change, then all tests pass including the updated `"renders matched skills and skill gaps"` test that now clicks the toggle first
+- [x] Invalid input: N/A — no user-facing form input; data comes from a typed API response
+- [x] Auth: N/A — ResultCard is a pure display component; auth is enforced upstream by the route
+- [x] Downstream: N/A — no external calls on expand
+
+**Verification:**
+- [x] `npm test -- --run src/components/ResultCard.test.tsx` — 16 tests green
+- [x] `npm test` in `frontend/` — full suite green (122 tests)
+- [x] `npm run lint` and `npm run build` green
+- [x] PR CI green; post-merge CI + Deploy on `main` green (`719a31b`)
+
+**Dependencies:** Issue #82 (Tailwind + shadcn/ui tooling)
+
+**Files likely touched:**
+- `frontend/src/components/ResultCard.tsx`, `frontend/src/components/ResultCard.test.tsx`
+
+**Estimated scope:** Small
 
 ---
 
