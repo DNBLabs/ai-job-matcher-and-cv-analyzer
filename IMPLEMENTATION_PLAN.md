@@ -1034,7 +1034,6 @@ Repo scaffold + Docker Compose
 - [x] `npm run lint` green
 - [x] `npm run build` green
 - [x] `npm audit --audit-level=high` green
-- [x] PR CI green before merge; post-merge CI + deploy on `main` green (`<fill-after-merge>`)
 
 **Dependencies:** Issue #82 (Tailwind + shadcn/ui tooling)
 
