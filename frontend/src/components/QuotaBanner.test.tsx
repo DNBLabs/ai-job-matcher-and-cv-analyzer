@@ -28,4 +28,17 @@ describe("QuotaBanner", () => {
     const { container } = render(<QuotaBanner quota={null} />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("test_quotaBanner_rendersMessages_usesMutedForegroundNotQuotaNote", () => {
+    render(<QuotaBanner quota={{ remaining: 2, concurrent_blocked: true }} />);
+
+    const messages = [
+      screen.getByText(/2 runs left today/i),
+      screen.getByText(/already running/i),
+    ];
+    for (const message of messages) {
+      expect(message).not.toHaveClass("quota-note");
+      expect(message).toHaveClass("text-muted-foreground");
+    }
+  });
 });

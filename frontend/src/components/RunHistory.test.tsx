@@ -54,4 +54,28 @@ describe("RunHistory", () => {
 
     expect(screen.getByText(/no runs yet/i)).toBeInTheDocument();
   });
+
+  it("test_runHistory_noRuns_emptyStateUsesMutedForegroundNotLegacyClass", () => {
+    renderHistory([], new Map());
+
+    const empty = screen.getByText(/no runs yet/i);
+    expect(empty).not.toHaveClass("empty-state");
+    expect(empty).toHaveClass("text-muted-foreground");
+  });
+
+  it("test_runHistory_withRuns_listItemUsesCardAndBadgeNotLegacyStatusClasses", () => {
+    renderHistory([completeRun], new Map([["cv-1", "React CV"]]));
+
+    const list = screen.getByRole("list");
+    expect(list).not.toHaveClass("run-list");
+
+    const item = screen.getByRole("listitem");
+    const card = item.querySelector("[class*='rounded-lg'][class*='border'][class*='bg-card']");
+    expect(card).not.toBeNull();
+
+    const status = within(item).getByText(/Complete/);
+    expect(status).not.toHaveClass("run-status");
+    expect(status.className).not.toMatch(/\bstatus-/);
+    expect(status).toHaveClass("rounded-full", "text-xs");
+  });
 });
