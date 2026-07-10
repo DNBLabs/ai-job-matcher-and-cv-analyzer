@@ -23,9 +23,11 @@ export function QuotaBanner({ quota }: QuotaBannerProps) {
   }
   return (
     <>
-      <p className="quota-note">{quotaMessage(quota)}</p>
+      <p className="text-sm text-muted-foreground">{quotaMessage(quota)}</p>
       {quota.concurrent_blocked && (
-        <p className="quota-note">A run is already running — wait for it to finish.</p>
+        <p className="text-sm text-muted-foreground">
+          A run is already running — wait for it to finish.
+        </p>
       )}
     </>
   );

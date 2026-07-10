@@ -13,6 +13,9 @@ import { useAuth } from "../auth/useAuth";
 import { useApiWarmup } from "../hooks/useApiWarmup";
 import { QuotaBanner } from "../components/QuotaBanner";
 import { RunHistory } from "../components/RunHistory";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { Button } from "../components/ui/button";
+import { Card } from "../components/ui/card";
 
 /**
  * Authenticated landing page: CV library, run history, daily quota, and the
@@ -61,55 +64,71 @@ export function Dashboard() {
   }
 
   return (
-    <main className="dashboard">
-      <header className="dashboard-header">
-        <h1>Dashboard</h1>
+    <main className="mx-auto max-w-3xl px-4 text-foreground">
+      <header className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
       </header>
-      <p>Signed in as {user?.email}</p>
+      <p className="text-muted-foreground">Signed in as {user?.email}</p>
 
       {warmup === "warming" && (
-        <p role="status" className="warming-banner">
-          Waking the service up — this can take up to a minute on the first
-          request. Hang tight.
-        </p>
+        <Alert
+          role="status"
+          className="mb-4 border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100"
+        >
+          <AlertDescription>
+            Waking the service up — this can take up to a minute on the first
+            request. Hang tight.
+          </AlertDescription>
+        </Alert>
       )}
 
       <QuotaBanner quota={quota} />
 
-      <section className="cv-section">
-        <div className="section-header">
-          <h2>Your CVs</h2>
+      <section className="mt-8">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-xl font-semibold text-foreground">Your CVs</h2>
           {startBlocked ? (
-            <button type="button" className="primary-action" disabled>
+            <Button type="button" disabled>
               Start a new run
-            </button>
+            </Button>
           ) : (
-            <Link className="primary-action" to="/runs/new">
-              Start a new run
-            </Link>
+            <Button asChild>
+              <Link to="/runs/new">Start a new run</Link>
+            </Button>
           )}
         </div>
         {loaded && cvs.length === 0 ? (
-          <p className="empty-state">No CVs yet — upload your first CV to start a run.</p>
+          <p className="text-sm text-muted-foreground">
+            No CVs yet — upload your first CV to start a run.
+          </p>
         ) : (
-          <ul className="cv-list">
+          <ul className="mt-2 flex list-none flex-col gap-2 p-0">
             {cvs.map((cv) => (
               <li key={cv.id}>
-                <span className="cv-name">{cv.name}</span>
-                <span className="cv-date">
-                  {new Date(cv.uploaded_at).toLocaleDateString()}
-                </span>
-                <button type="button" onClick={() => void handleDelete(cv.id)}>
-                  Delete
-                </button>
+                <Card className="flex min-w-0 flex-wrap items-center gap-3 p-3 sm:flex-nowrap">
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {cv.name}
+                  </span>
+                  <span className="shrink-0 text-sm text-muted-foreground">
+                    {new Date(cv.uploaded_at).toLocaleDateString()}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleDelete(cv.id)}
+                  >
+                    Delete
+                  </Button>
+                </Card>
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      <section className="run-section">
-        <h2>Run history</h2>
+      <section className="mt-8">
+        <h2 className="text-xl font-semibold text-foreground">Run history</h2>
         {loaded && <RunHistory runs={runs} cvNames={cvNames} />}
       </section>
     </main>
