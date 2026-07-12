@@ -101,9 +101,11 @@ describe("NewRun", () => {
     );
 
     expect(screen.getByRole("link", { name: /cancel/i })).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: /use react cv/i }),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /use react cv/i }),
+      ).toBeVisible(),
+    );
     expect(screen.getByLabelText(/cv name/i)).toBeVisible();
     expect(screen.getByRole("button", { name: /upload cv/i })).toBeVisible();
 
