@@ -175,6 +175,7 @@ Repo scaffold + Docker Compose
 - [x] Issue #82: Install Tailwind CSS v3.4.x (PostCSS) + shadcn/ui tooling — `tailwindcss`/`postcss`/`autoprefixer` devDeps (no `@tailwindcss/vite`), `@fontsource/inter` runtime dep, `tailwind.config.ts` (`darkMode: 'class'`, `./src/**/*.{ts,tsx}` content), `postcss.config.js`, `index.css` with `@tailwind` directives + deep-violet `--primary`, pre-paint dark-class script in `index.html`, eight shadcn components copied under `src/components/ui/`, `@/` → `src/` alias in tsconfig + vite. No page className changes.
 - [x] Issue #84: ResultCard expand/collapse breakdown toggle — `useState(false)` per card; collapsed summary (title, company, source, scores, divergence badge, apply link); shadcn `Button` toggle (`Show breakdown` / `Hide breakdown`); breakdown sections conditionally rendered (not CSS-hidden); legacy `result-card*` classes replaced with Tailwind utilities; 16 `ResultCard` Vitest tests green (#90).
 - [x] Issue #93: Tailwind rewrite — Dashboard hub — `Dashboard.tsx`, `QuotaBanner.tsx`, `RunHistory.tsx` migrated from `App.css` hooks to Tailwind utilities + shadcn `Card`, `Badge`, `Alert`, `Button`; 375px light/dark AC tests green; PR #96 merged (`e76a6d9`).
+- [x] Issue #94: Tailwind rewrite — run flow (NewRun + RunDetail) — `NewRun.tsx`, `RunDetail.tsx`, `CvUploadForm.tsx`, `JobSearchForm.tsx`, `TitleSuggestions.tsx` migrated from `App.css` hooks to Tailwind utilities + shadcn `Input`, `Select`, `Alert`, `Badge`, `Button`; 375px light/dark AC tests green; PR #97 merged (`ac1981b`).
 
 ---
 
@@ -1067,6 +1068,32 @@ Repo scaffold + Docker Compose
 
 **Files likely touched:**
 - `frontend/src/pages/Dashboard.tsx`, `frontend/src/components/QuotaBanner.tsx`, `frontend/src/components/RunHistory.tsx`, `frontend/src/pages/Dashboard.test.tsx`
+
+**Estimated scope:** Small
+
+---
+
+## Issue #94: Tailwind rewrite — run flow (NewRun + RunDetail)
+
+**Description:** Migrate the run-flow journey — new-run wizard and run-detail polling view — from hand-rolled `App.css` class names to Tailwind utility classes and shadcn/ui primitives. Scope: `NewRun.tsx` (multi-step wizard layout), `RunDetail.tsx` (status display and progress indicator), and wizard components `CvUploadForm.tsx`, `JobSearchForm.tsx`, and `TitleSuggestions.tsx`. Use shadcn `Input`/`Select` for form fields, `Alert` for error states, `Badge` for status labels, and `Button` for actions. No logic changes — className strings and element structure only. Dark mode via existing `html.dark` CSS variables (#82); no per-component `prefers-color-scheme` overrides.
+
+**Parent / Epic:** #86
+
+**Acceptance criteria:**
+- [x] Given NewRun at 375px in light and dark mode, when rendered, then the page is usable (no horizontal scroll, interactive elements reachable) and text/background colours are legible
+- [x] Given RunDetail at 375px in light and dark mode, when rendered, then the page is usable (no horizontal scroll, interactive elements reachable) and text/background colours are legible
+
+**Verification:**
+- [x] `npm test -- src/pages/NewRun.test.tsx src/pages/RunDetail.test.tsx` — AC tests + existing suite green (143 tests)
+- [x] `npm run lint` green
+- [x] `npm run build` green
+- [x] `npm audit --audit-level=high` green
+- [x] PR CI green; post-merge CI + Deploy on `main` green (`ac1981b`)
+
+**Dependencies:** Issue #82 (Tailwind + shadcn/ui tooling); Issue #83 (AppLayout)
+
+**Files likely touched:**
+- `frontend/src/pages/NewRun.tsx`, `frontend/src/pages/RunDetail.tsx`, `frontend/src/components/CvUploadForm.tsx`, `frontend/src/components/JobSearchForm.tsx`, `frontend/src/components/TitleSuggestions.tsx`, `frontend/src/pages/NewRun.test.tsx`, `frontend/src/pages/RunDetail.test.tsx`, `frontend/src/App.css`
 
 **Estimated scope:** Small
 
