@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { ApiError, uploadCv, type Cv } from "../api/client";
+import { Alert, AlertDescription } from "./ui/alert";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 
 type State =
   | { kind: "idle" }
@@ -47,20 +50,25 @@ export function CvUploadForm({ onUploaded }: CvUploadFormProps) {
   }
 
   return (
-    <form className="cv-upload-form" onSubmit={handleSubmit} noValidate>
-      <label htmlFor="cv-name">CV name</label>
-      <input
+    <form className="mt-4 flex flex-col gap-3" onSubmit={handleSubmit} noValidate>
+      <label htmlFor="cv-name" className="text-sm font-medium">
+        CV name
+      </label>
+      <Input
         id="cv-name"
         name="cv-name"
         type="text"
         required
+        className="text-foreground"
         value={name}
         onChange={(event) => setName(event.target.value)}
         placeholder="e.g. React-focused"
       />
 
-      <label htmlFor="cv-file">PDF file</label>
-      <input
+      <label htmlFor="cv-file" className="text-sm font-medium">
+        PDF file
+      </label>
+      <Input
         id="cv-file"
         name="cv-file"
         type="file"
@@ -69,14 +77,14 @@ export function CvUploadForm({ onUploaded }: CvUploadFormProps) {
         onChange={(event) => setFile(event.target.files?.[0] ?? null)}
       />
 
-      <button type="submit" disabled={state.kind === "uploading" || !file || name.trim() === ""}>
+      <Button type="submit" disabled={state.kind === "uploading" || !file || name.trim() === ""}>
         {state.kind === "uploading" ? "Uploading…" : "Upload CV"}
-      </button>
+      </Button>
 
       {state.kind === "error" && (
-        <p role="alert" className="form-error">
-          {state.message}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
       )}
     </form>
   );

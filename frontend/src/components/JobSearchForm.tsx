@@ -14,11 +14,23 @@ import {
   UK_CITIES,
 } from "../domain/jobSearch";
 import { QuotaBanner } from "./QuotaBanner";
+import { Alert, AlertDescription } from "./ui/alert";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 type SubmitState =
   | { kind: "idle" }
   | { kind: "starting" }
   | { kind: "error"; message: string };
+
+const ANY_FILTER_VALUE = "any";
 
 /**
  * Job Search form: collects role, location/remote, and optional filters, shows
@@ -97,37 +109,41 @@ export function JobSearchForm({ cvId, initialRole, onStarted }: JobSearchFormPro
   }
 
   return (
-    <form className="job-search-form" onSubmit={handleSubmit}>
-      <h3>Search for jobs</h3>
+    <form className="mt-4 flex flex-col gap-3" onSubmit={handleSubmit}>
+      <h3 className="text-lg font-semibold">Search for jobs</h3>
 
       <QuotaBanner quota={quota} />
 
-      <label htmlFor="role">Role or keywords</label>
-      <input
+      <label htmlFor="role" className="text-sm font-medium">
+        Role or keywords
+      </label>
+      <Input
         id="role"
         name="role"
         type="text"
         required
+        className="text-foreground"
         value={role}
         onChange={(event) => setRole(event.target.value)}
       />
 
-      <label htmlFor="location">Location</label>
-      <select
-        id="location"
-        name="location"
-        value={location}
-        disabled={remote}
-        onChange={(event) => setLocation(event.target.value)}
-      >
-        {UK_CITIES.map((city) => (
-          <option key={city} value={city}>
-            {city}
-          </option>
-        ))}
-      </select>
+      <label htmlFor="location" className="text-sm font-medium">
+        Location
+      </label>
+      <Select value={location} onValueChange={setLocation} disabled={remote}>
+        <SelectTrigger id="location">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {UK_CITIES.map((city) => (
+            <SelectItem key={city} value={city}>
+              {city}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-      <label htmlFor="remote">
+      <label htmlFor="remote" className="flex items-center gap-2 text-sm font-medium">
         <input
           id="remote"
           name="remote"
@@ -138,44 +154,58 @@ export function JobSearchForm({ cvId, initialRole, onStarted }: JobSearchFormPro
         Remote only
       </label>
 
-      <label htmlFor="experience-level">Experience level (optional)</label>
-      <select
-        id="experience-level"
-        name="experience-level"
-        value={experienceLevel}
-        onChange={(event) => setExperienceLevel(event.target.value)}
+      <label htmlFor="experience-level" className="text-sm font-medium">
+        Experience level (optional)
+      </label>
+      <Select
+        value={experienceLevel || ANY_FILTER_VALUE}
+        onValueChange={(value) =>
+          setExperienceLevel(value === ANY_FILTER_VALUE ? "" : value)
+        }
       >
-        <option value="">Any</option>
-        {EXPERIENCE_LEVELS.map((level) => (
-          <option key={level.value} value={level.value}>
-            {level.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger id="experience-level">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ANY_FILTER_VALUE}>Any</SelectItem>
+          {EXPERIENCE_LEVELS.map((level) => (
+            <SelectItem key={level.value} value={level.value}>
+              {level.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-      <label htmlFor="employment-type">Employment type (optional)</label>
-      <select
-        id="employment-type"
-        name="employment-type"
-        value={employmentType}
-        onChange={(event) => setEmploymentType(event.target.value)}
+      <label htmlFor="employment-type" className="text-sm font-medium">
+        Employment type (optional)
+      </label>
+      <Select
+        value={employmentType || ANY_FILTER_VALUE}
+        onValueChange={(value) =>
+          setEmploymentType(value === ANY_FILTER_VALUE ? "" : value)
+        }
       >
-        <option value="">Any</option>
-        {EMPLOYMENT_TYPES.map((type) => (
-          <option key={type.value} value={type.value}>
-            {type.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger id="employment-type">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ANY_FILTER_VALUE}>Any</SelectItem>
+          {EMPLOYMENT_TYPES.map((type) => (
+            <SelectItem key={type.value} value={type.value}>
+              {type.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-      <button type="submit" disabled={!canStart}>
+      <Button type="submit" disabled={!canStart}>
         {state.kind === "starting" ? "Starting…" : "Start analysis run"}
-      </button>
+      </Button>
 
       {state.kind === "error" && (
-        <p role="alert" className="form-error">
-          {state.message}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
       )}
     </form>
   );

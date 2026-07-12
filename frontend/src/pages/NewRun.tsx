@@ -4,6 +4,7 @@ import { listCvs, type Cv, type Run } from "../api/client";
 import { CvUploadForm } from "../components/CvUploadForm";
 import { JobSearchForm } from "../components/JobSearchForm";
 import { TitleSuggestions } from "../components/TitleSuggestions";
+import { Button } from "../components/ui/button";
 
 type Step =
   | { name: "cv" }
@@ -42,31 +43,33 @@ export function NewRun() {
   }
 
   return (
-    <main className="new-run">
-      <header>
-        <h1>Start a new analysis run</h1>
-        <Link to="/dashboard">Cancel</Link>
+    <main className="mx-auto max-w-3xl px-4 text-foreground">
+      <header className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Start a new analysis run</h1>
+        <Button variant="link" asChild>
+          <Link to="/dashboard">Cancel</Link>
+        </Button>
       </header>
 
       {step.name === "cv" && (
         <section>
           {cvs.length > 0 && (
-            <div className="existing-cvs">
-              <h3>Use an existing CV</h3>
-              <ul>
+            <div className="mt-6 space-y-3">
+              <h3 className="text-lg font-semibold text-foreground">Use an existing CV</h3>
+              <ul className="flex list-none flex-col gap-2 p-0">
                 {cvs.map((cv) => (
-                  <li key={cv.id}>
-                    <span>{cv.name}</span>
-                    <button
+                  <li key={cv.id} className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 truncate">{cv.name}</span>
+                    <Button
                       type="button"
                       onClick={() => setStep({ name: "titles", cv })}
                     >
                       Use {cv.name}
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
-              <p className="divider">or upload a new one</p>
+              <p className="text-center text-sm text-muted-foreground">or upload a new one</p>
             </div>
           )}
           <CvUploadForm
@@ -80,7 +83,9 @@ export function NewRun() {
 
       {step.name === "titles" && (
         <section>
-          <p className="wizard-cv">Using CV: <strong>{step.cv.name}</strong></p>
+          <p className="text-sm text-muted-foreground">
+            Using CV: <strong className="text-foreground">{step.cv.name}</strong>
+          </p>
           <TitleSuggestions
             cvId={step.cv.id}
             onUseTitle={(role) => setStep({ name: "search", cv: step.cv, role })}
@@ -90,7 +95,9 @@ export function NewRun() {
 
       {step.name === "search" && (
         <section>
-          <p className="wizard-cv">Using CV: <strong>{step.cv.name}</strong></p>
+          <p className="text-sm text-muted-foreground">
+            Using CV: <strong className="text-foreground">{step.cv.name}</strong>
+          </p>
           <JobSearchForm cvId={step.cv.id} initialRole={step.role} onStarted={handleStarted} />
         </section>
       )}

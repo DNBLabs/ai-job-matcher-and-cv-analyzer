@@ -37,13 +37,12 @@ describe("JobSearchForm", () => {
     render(<JobSearchForm cvId="cv-1" initialRole="Engineer" onStarted={onStarted} />);
     await waitFor(() => expect(screen.getByText(/3 runs left today/i)).toBeInTheDocument());
 
-    fireEvent.change(screen.getByLabelText(/location/i), { target: { value: "London" } });
     fireEvent.click(screen.getByRole("button", { name: /start analysis run/i }));
 
     await waitFor(() => expect(onStarted).toHaveBeenCalledWith(queuedRun));
     expect(createRun).toHaveBeenCalledWith("cv-1", {
       role: "Engineer",
-      location: "London",
+      location: "Belfast",
       remote: false,
     });
   });
@@ -86,9 +85,47 @@ describe("JobSearchForm", () => {
     render(<JobSearchForm cvId="cv-1" initialRole="Engineer" onStarted={vi.fn()} />);
     await waitFor(() => expect(screen.getByText(/3 runs left today/i)).toBeInTheDocument());
 
-    fireEvent.change(screen.getByLabelText(/location/i), { target: { value: "London" } });
     fireEvent.click(screen.getByRole("button", { name: /start analysis run/i }));
 
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+  });
+
+  it("test_jobSearchForm_usesShadcnInputSelectButtonNotLegacyClasses", async () => {
+    vi.mocked(getRunQuota).mockResolvedValue({ remaining: 3, concurrent_blocked: false });
+
+    render(<JobSearchForm cvId="cv-1" initialRole="Engineer" onStarted={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText(/3 runs left today/i)).toBeInTheDocument());
+
+    const form = screen.getByRole("heading", { name: /search for jobs/i }).closest("form");
+    expect(form).not.toBeNull();
+    expect(form).not.toHaveClass("job-search-form");
+
+    expect(screen.getByLabelText(/role or keywords/i)).toHaveClass(
+      "border-input",
+      "bg-background",
+      "text-foreground",
+    );
+
+    const locationTrigger = screen.getByLabelText(/location/i);
+    expect(locationTrigger).toHaveClass("border-input", "bg-background");
+
+    const startButton = screen.getByRole("button", { name: /start analysis run/i });
+    expect(startButton).toHaveClass("inline-flex");
+    expect(startButton).not.toHaveClass("primary-action");
+  });
+
+  it("test_jobSearchForm_errorState_usesAlertNotFormError", async () => {
+    vi.mocked(getRunQuota).mockResolvedValue({ remaining: 3, concurrent_blocked: false });
+    vi.mocked(createRun).mockRejectedValue(new ApiError(429, "quota"));
+
+    render(<JobSearchForm cvId="cv-1" initialRole="Engineer" onStarted={vi.fn()} />);
+    await waitFor(() => expect(screen.getByText(/3 runs left today/i)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /start analysis run/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).not.toHaveClass("form-error");
+    expect(alert).toHaveClass("rounded-lg", "border");
+    expect(alert.className).toMatch(/destructive/i);
   });
 });
