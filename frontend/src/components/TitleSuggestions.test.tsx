@@ -53,4 +53,49 @@ describe("TitleSuggestions", () => {
 
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
   });
+
+  it("test_titleSuggestions_loadedState_notLegacySuggestionClasses", async () => {
+    vi.mocked(suggestTitles).mockResolvedValue({
+      titles: [{ title: "Frontend Developer", rationale: "React experience" }],
+    });
+
+    render(<TitleSuggestions cvId="cv-1" onUseTitle={vi.fn()} />);
+
+    await waitFor(() =>
+      expect(screen.getByText("Frontend Developer")).toBeInTheDocument(),
+    );
+
+    const section = screen
+      .getByRole("heading", { name: /suggested job titles/i })
+      .closest("section");
+    expect(section).not.toBeNull();
+    expect(section).not.toHaveClass("title-suggestions");
+
+    const list = screen.getByRole("list");
+    expect(list).not.toHaveClass("suggestion-list");
+
+    const customForm = screen.getByLabelText(/or enter your own role/i).closest("form");
+    expect(customForm).not.toBeNull();
+    expect(customForm).not.toHaveClass("custom-role");
+
+    expect(screen.getByLabelText(/or enter your own role/i)).toHaveClass(
+      "border-input",
+      "bg-background",
+      "text-foreground",
+    );
+
+    const useButton = screen.getByRole("button", { name: /use frontend developer/i });
+    expect(useButton).toHaveClass("inline-flex");
+  });
+
+  it("test_titleSuggestions_errorState_usesAlertNotFormError", async () => {
+    vi.mocked(suggestTitles).mockRejectedValue(new Error("boom"));
+
+    render(<TitleSuggestions cvId="cv-1" onUseTitle={vi.fn()} />);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).not.toHaveClass("form-error");
+    expect(alert).toHaveClass("rounded-lg", "border");
+    expect(alert.className).toMatch(/destructive/i);
+  });
 });

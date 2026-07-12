@@ -46,4 +46,40 @@ describe("CvUploadForm", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
     expect(onUploaded).not.toHaveBeenCalled();
   });
+
+  it("test_cvUploadForm_usesShadcnInputButtonNotLegacyClasses", () => {
+    render(<CvUploadForm onUploaded={vi.fn()} />);
+
+    const form = screen.getByLabelText(/cv name/i).closest("form");
+    expect(form).not.toBeNull();
+    expect(form).not.toHaveClass("cv-upload-form");
+
+    expect(screen.getByLabelText(/cv name/i)).toHaveClass(
+      "border-input",
+      "bg-background",
+      "text-foreground",
+    );
+    expect(screen.getByLabelText(/pdf file/i)).toHaveClass(
+      "border-input",
+      "bg-background",
+    );
+
+    const uploadButton = screen.getByRole("button", { name: /upload cv/i });
+    expect(uploadButton).toHaveClass("inline-flex");
+    expect(uploadButton).not.toHaveClass("primary-action");
+  });
+
+  it("test_cvUploadForm_errorState_usesAlertNotFormError", async () => {
+    vi.mocked(uploadCv).mockRejectedValue(new ApiError(400, "bad pdf"));
+
+    render(<CvUploadForm onUploaded={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText(/cv name/i), { target: { value: "X" } });
+    selectFile();
+    fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).not.toHaveClass("form-error");
+    expect(alert).toHaveClass("rounded-lg", "border");
+    expect(alert.className).toMatch(/destructive/i);
+  });
 });

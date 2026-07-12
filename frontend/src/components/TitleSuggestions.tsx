@@ -1,5 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { suggestTitles, type SuggestedTitle } from "../api/client";
+import { Alert, AlertDescription } from "./ui/alert";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 
 type State =
   | { kind: "loading" }
@@ -51,44 +54,54 @@ export function TitleSuggestions({ cvId, onUseTitle }: TitleSuggestionsProps) {
   }
 
   return (
-    <section className="title-suggestions">
-      <h3>Suggested job titles</h3>
+    <section className="mt-6 space-y-4">
+      <h3 className="text-lg font-semibold">Suggested job titles</h3>
 
       {state.kind === "loading" && <p role="status">Reading your CV…</p>}
 
       {state.kind === "error" && (
-        <p role="alert" className="form-error">
-          We couldn't suggest titles right now — type your own role below.
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>
+            We couldn&apos;t suggest titles right now — type your own role below.
+          </AlertDescription>
+        </Alert>
       )}
 
       {state.kind === "loaded" && (
-        <ul className="suggestion-list">
+        <ul className="flex list-none flex-col gap-2 p-0">
           {state.titles.map((suggestion) => (
-            <li key={suggestion.title}>
-              <span className="suggestion-title">{suggestion.title}</span>
-              <span className="suggestion-rationale">{suggestion.rationale}</span>
-              <button type="button" onClick={() => onUseTitle(suggestion.title)}>
+            <li
+              key={suggestion.title}
+              className="flex flex-col gap-1 rounded-md border p-3"
+            >
+              <span className="font-medium">{suggestion.title}</span>
+              <span className="text-sm text-muted-foreground">
+                {suggestion.rationale}
+              </span>
+              <Button type="button" size="sm" onClick={() => onUseTitle(suggestion.title)}>
                 Use {suggestion.title}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       )}
 
-      <form className="custom-role" onSubmit={handleCustomSubmit}>
-        <label htmlFor="custom-role">Or enter your own role</label>
-        <input
+      <form className="flex flex-col gap-3" onSubmit={handleCustomSubmit}>
+        <label htmlFor="custom-role" className="text-sm font-medium">
+          Or enter your own role
+        </label>
+        <Input
           id="custom-role"
           name="custom-role"
           type="text"
+          className="text-foreground"
           value={customRole}
           onChange={(event) => setCustomRole(event.target.value)}
           placeholder="e.g. Frontend Developer"
         />
-        <button type="submit" disabled={customRole.trim() === ""}>
+        <Button type="submit" disabled={customRole.trim() === ""}>
           Use this role
-        </button>
+        </Button>
       </form>
     </section>
   );
