@@ -174,6 +174,7 @@ Repo scaffold + Docker Compose
 
 - [x] Issue #82: Install Tailwind CSS v3.4.x (PostCSS) + shadcn/ui tooling — `tailwindcss`/`postcss`/`autoprefixer` devDeps (no `@tailwindcss/vite`), `@fontsource/inter` runtime dep, `tailwind.config.ts` (`darkMode: 'class'`, `./src/**/*.{ts,tsx}` content), `postcss.config.js`, `index.css` with `@tailwind` directives + deep-violet `--primary`, pre-paint dark-class script in `index.html`, eight shadcn components copied under `src/components/ui/`, `@/` → `src/` alias in tsconfig + vite. No page className changes.
 - [x] Issue #84: ResultCard expand/collapse breakdown toggle — `useState(false)` per card; collapsed summary (title, company, source, scores, divergence badge, apply link); shadcn `Button` toggle (`Show breakdown` / `Hide breakdown`); breakdown sections conditionally rendered (not CSS-hidden); legacy `result-card*` classes replaced with Tailwind utilities; 16 `ResultCard` Vitest tests green (#90).
+- [x] Issue #93: Tailwind rewrite — Dashboard hub — `Dashboard.tsx`, `QuotaBanner.tsx`, `RunHistory.tsx` migrated from `App.css` hooks to Tailwind utilities + shadcn `Card`, `Badge`, `Alert`, `Button`; 375px light/dark AC tests green; PR #96 merged (`e76a6d9`).
 
 ---
 
@@ -1039,6 +1040,33 @@ Repo scaffold + Docker Compose
 
 **Files likely touched:**
 - `frontend/src/pages/Login.tsx`, `frontend/src/App.css`
+
+**Estimated scope:** Small
+
+---
+
+## Issue #93: Tailwind rewrite — Dashboard hub
+
+**Description:** Migrate the Dashboard hub — the authenticated landing page and its dedicated shared components — from hand-rolled `App.css` class names to Tailwind utility classes and shadcn/ui primitives. Scope: `Dashboard.tsx` (CV library, run-history section, warming banner, primary actions), `QuotaBanner.tsx` (daily quota messaging), and `RunHistory.tsx` (run list with status badges and CV name resolution). No logic changes — className strings and element structure only. Dark mode via existing `html.dark` CSS variables (#82); no per-component `prefers-color-scheme` overrides.
+
+**Parent / Epic:** #86
+
+**Acceptance criteria:**
+- [x] Given Dashboard at 375px in light and dark mode, when rendered, then the page is usable (no horizontal scroll, interactive elements reachable) and text/background colours are legible across all sections
+- [x] Given Dashboard with no CVs, when rendered, then the empty-state message is visible and appropriately styled
+- [x] Given Dashboard with a warming banner active, when rendered, then the `role="status"` warming message is visually distinct (e.g. an info-coloured Alert)
+
+**Verification:**
+- [x] `npm test -- src/pages/Dashboard.test.tsx` — AC tests + existing suite green (129 tests)
+- [x] `npm run lint` green
+- [x] `npm run build` green
+- [x] `npm audit --audit-level=high` green
+- [x] PR CI green; post-merge CI + Deploy on `main` green (`e76a6d9`)
+
+**Dependencies:** Issue #82 (Tailwind + shadcn/ui tooling); Issue #83 (AppLayout)
+
+**Files likely touched:**
+- `frontend/src/pages/Dashboard.tsx`, `frontend/src/components/QuotaBanner.tsx`, `frontend/src/components/RunHistory.tsx`, `frontend/src/pages/Dashboard.test.tsx`
 
 **Estimated scope:** Small
 
