@@ -5,7 +5,6 @@
  * route table inside a MemoryRouter.
  */
 import { Navigate, Route, Routes } from "react-router-dom";
-import "./App.css";
 import { AdminRoute } from "./auth/AdminRoute";
 import { AuthProvider } from "./auth/AuthProvider";
 import { ProtectedRoute } from "./auth/ProtectedRoute";

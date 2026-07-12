@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getRun, getRunResults, type JobMatchResult, type Run } from "../api/client";
 import { ResultCard } from "../components/ResultCard";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 
 type Likelihood = "high" | "medium" | "low";
 
@@ -85,76 +88,91 @@ export function Results() {
       ?.failures?.length ?? 0) > 0;
 
   return (
-    <main className="results-page">
-      <header className="results-header">
-        <h1>Results</h1>
+    <main className="mx-auto max-w-3xl px-4 text-foreground">
+      <header className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-foreground">Results</h1>
         {runId && (
-          <Link to={`/runs/${runId}`}>Back to run</Link>
+          <Button variant="link" asChild>
+            <Link to={`/runs/${runId}`}>Back to run</Link>
+          </Button>
         )}
       </header>
 
       {!loaded && <p role="status">Loading results…</p>}
 
       {hasSourceFailures && (
-        <p role="alert" className="source-failure-banner">
-          Some job sources failed — results may be incomplete.
-        </p>
+        <Alert
+          variant="warning"
+          className="mt-4"
+          aria-label="Some job sources failed — results may be incomplete."
+        >
+          <AlertDescription>
+            Some job sources failed — results may be incomplete.
+          </AlertDescription>
+        </Alert>
       )}
 
       {loaded && (
-        <section className="results-filters" aria-label="Filters">
-          <fieldset className="results-filter-group">
-            <legend>Interview Likelihood</legend>
-            {LIKELIHOODS.map((l) => (
-              <label key={l} className="results-filter-option">
-                <input
-                  type="checkbox"
-                  checked={likelihoodFilter.has(l)}
-                  onChange={() => toggleLikelihood(l)}
-                />
-                {LIKELIHOOD_LABELS[l]}
-              </label>
-            ))}
+        <section
+          className="mt-6 flex flex-wrap gap-4"
+          aria-label="Filters"
+        >
+          <fieldset className="min-w-0 flex-1 space-y-2 border-0 p-0">
+            <legend className="text-sm font-medium text-foreground">Interview Likelihood</legend>
+            <div className="flex flex-wrap gap-3">
+              {LIKELIHOODS.map((l) => (
+                <label key={l} className="flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={likelihoodFilter.has(l)}
+                    onChange={() => toggleLikelihood(l)}
+                  />
+                  {LIKELIHOOD_LABELS[l]}
+                </label>
+              ))}
+            </div>
           </fieldset>
 
           {sources.length > 1 && (
-            <fieldset className="results-filter-group">
-              <legend>Job Source</legend>
-              {sources.map((s) => (
-                <label key={s} className="results-filter-option">
-                  <input
-                    type="checkbox"
-                    checked={sourceFilter.has(s)}
-                    onChange={() => toggleSource(s)}
-                  />
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </label>
-              ))}
+            <fieldset className="min-w-0 flex-1 space-y-2 border-0 p-0">
+              <legend className="text-sm font-medium text-foreground">Job Source</legend>
+              <div className="flex flex-wrap gap-3">
+                {sources.map((s) => (
+                  <label key={s} className="flex items-center gap-2 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={sourceFilter.has(s)}
+                      onChange={() => toggleSource(s)}
+                    />
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </label>
+                ))}
+              </div>
             </fieldset>
           )}
 
-          <div className="results-filter-group">
-            <label htmlFor="min-score" className="results-filter-legend">
+          <div className="min-w-0 space-y-2">
+            <label htmlFor="min-score" className="text-sm font-medium text-foreground">
               Min score
             </label>
-            <input
+            <Input
               id="min-score"
               type="number"
               min={0}
               max={100}
               value={minScore}
               onChange={(e) => setMinScore(Number(e.target.value))}
-              className="min-score-input"
+              className="w-24"
             />
           </div>
         </section>
       )}
 
       {loaded && filtered.length === 0 && results.length > 0 && (
-        <p className="empty-state">No results match the current filters.</p>
+        <p className="mt-4 text-muted-foreground">No results match the current filters.</p>
       )}
 
-      <ul className="results-list">
+      <ul className="mt-6 flex list-none flex-col gap-4 p-0">
         {filtered.map((result) => (
           <li key={result.id}>
             <ResultCard result={result} />

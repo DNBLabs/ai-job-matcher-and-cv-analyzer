@@ -89,8 +89,32 @@ function renderResults() {
   );
 }
 
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, "innerWidth", {
+    writable: true,
+    configurable: true,
+    value: width,
+  });
+  Object.defineProperty(document.documentElement, "clientWidth", {
+    writable: true,
+    configurable: true,
+    value: width,
+  });
+}
+
+function getResultsContentMain(): HTMLElement {
+  const heading = screen.getByRole("heading", { name: /^results$/i, level: 1 });
+  const main = heading.closest("main");
+  expect(main).not.toBeNull();
+  return main as HTMLElement;
+}
+
 describe("Results", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.documentElement.classList.remove("dark");
+    setViewportWidth(1024);
+  });
 
   it("renders all results loaded from the API", async () => {
     vi.mocked(getRun).mockResolvedValue(FIXTURE_RUN);
@@ -255,5 +279,154 @@ describe("Results", () => {
     fireEvent.change(screen.getByLabelText(/min.*score/i), { target: { value: "99" } });
 
     expect(screen.getByText(/no results match/i)).toBeInTheDocument();
+  });
+
+  it("test_results_viewport375_lightAndDark_noHorizontalScrollReachableLegibleColours", async () => {
+    setViewportWidth(375);
+    vi.mocked(getRun).mockResolvedValue(FIXTURE_RUN);
+    vi.mocked(getRunResults).mockResolvedValue(FIXTURE_RESULTS);
+
+    renderResults();
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /^results$/i })).toBeInTheDocument(),
+    );
+
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(375);
+
+    const resultsMain = getResultsContentMain();
+    expect(resultsMain).not.toHaveClass("results-page");
+    expect(resultsMain).toHaveClass(
+      "mx-auto",
+      "max-w-3xl",
+      "px-4",
+      "text-foreground",
+    );
+
+    expect(screen.getByRole("link", { name: /back to run/i })).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: /^high$/i })).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: /^medium$/i })).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: /^low$/i })).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: /^adzuna$/i })).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: /^reed$/i })).toBeVisible();
+    expect(screen.getByLabelText(/min.*score/i)).toBeVisible();
+    expect(screen.getByText("Senior Engineer")).toBeVisible();
+
+    expect(screen.getByRole("heading", { name: /^results$/i })).toHaveClass(
+      "text-foreground",
+    );
+    expect(screen.getByLabelText(/min.*score/i)).toHaveClass(
+      "rounded-md",
+      "border-input",
+    );
+
+    document.documentElement.classList.add("dark");
+
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(375);
+
+    expect(resultsMain).toHaveClass("text-foreground");
+    expect(screen.getByRole("heading", { name: /^results$/i })).toHaveClass(
+      "text-foreground",
+    );
+    expect(screen.getByLabelText(/min.*score/i)).toHaveClass(
+      "rounded-md",
+      "border-input",
+    );
+  });
+
+  it("test_results_filtersAndList_notLegacyClasses_useShadcnInput", async () => {
+    vi.mocked(getRun).mockResolvedValue(FIXTURE_RUN);
+    vi.mocked(getRunResults).mockResolvedValue(FIXTURE_RESULTS);
+
+    renderResults();
+    await waitFor(() => expect(screen.getByText("Senior Engineer")).toBeInTheDocument());
+
+    const filterSection = screen.getByRole("region", { name: /^filters$/i });
+    expect(filterSection).not.toHaveClass("results-filters");
+    expect(filterSection).toHaveClass("flex", "flex-wrap");
+
+    const minScoreInput = screen.getByLabelText(/min.*score/i);
+    expect(minScoreInput).not.toHaveClass("min-score-input");
+    expect(minScoreInput).toHaveClass(
+      "border-input",
+      "bg-background",
+      "text-foreground",
+    );
+
+    const resultsList = screen.getByRole("list");
+    expect(resultsList).not.toHaveClass("results-list");
+
+    const header = screen.getByRole("heading", { name: /^results$/i }).closest("header");
+    expect(header).not.toBeNull();
+    expect(header).not.toHaveClass("results-header");
+  });
+
+  it("test_results_emptyState_notLegacyClasses_legibleMutedForeground", async () => {
+    vi.mocked(getRun).mockResolvedValue(FIXTURE_RUN);
+    vi.mocked(getRunResults).mockResolvedValue(FIXTURE_RESULTS);
+
+    renderResults();
+    await waitFor(() => expect(screen.getByText("Senior Engineer")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText(/min.*score/i), { target: { value: "99" } });
+
+    const emptyMessage = screen.getByText(/no results match/i);
+    expect(emptyMessage).toBeVisible();
+    expect(emptyMessage).not.toHaveClass("empty-state");
+    expect(emptyMessage).toHaveClass("text-muted-foreground");
+  });
+
+  it("test_results_sourceFailure_viewport375_bannerReachableNoHorizontalScroll", async () => {
+    setViewportWidth(375);
+    vi.mocked(getRun).mockResolvedValue({
+      ...FIXTURE_RUN,
+      source_failures: {
+        failures: [{ source: "reed", reason: "timeout" }],
+        successes: ["adzuna"],
+      },
+    });
+    vi.mocked(getRunResults).mockResolvedValue(FIXTURE_RESULTS);
+
+    renderResults();
+
+    const banner = await screen.findByRole("alert", {
+      name: /some job sources failed/i,
+    });
+
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(375);
+    expect(banner).toBeVisible();
+    expect(banner).not.toHaveClass("source-failure-banner");
+    expect(banner.tagName).toBe("DIV");
+
+    document.documentElement.classList.add("dark");
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(375);
+    expect(banner).toBeVisible();
+  });
+
+  it("test_results_sourceFailureBanner_rendered_usesAlertWarningVariant", async () => {
+    vi.mocked(getRun).mockResolvedValue({
+      ...FIXTURE_RUN,
+      source_failures: {
+        failures: [{ source: "reed", reason: "timeout" }],
+        successes: ["adzuna"],
+      },
+    });
+    vi.mocked(getRunResults).mockResolvedValue(FIXTURE_RESULTS);
+
+    renderResults();
+
+    const banner = await screen.findByRole("alert", {
+      name: /some job sources failed/i,
+    });
+
+    expect(banner).toBeVisible();
+    expect(banner).not.toHaveClass("source-failure-banner");
+    expect(banner.tagName).toBe("DIV");
+    expect(banner).toHaveClass("rounded-lg", "border");
+    expect(banner.className).toMatch(/amber|yellow/i);
+
+    const description = banner.querySelector("[class*='text-sm']");
+    expect(description).not.toBeNull();
+    expect(description).toHaveTextContent(/some job sources failed/i);
   });
 });
