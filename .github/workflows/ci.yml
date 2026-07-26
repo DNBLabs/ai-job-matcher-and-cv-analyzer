@@ -90,7 +90,9 @@ jobs:
         run: npm run build
 
       - name: Security audit
-        run: npm audit --audit-level=high
+        # audit-ci gates on high/critical advisories and carries reviewed,
+        # time-boxed exceptions (see frontend/audit-ci.jsonc).
+        run: npx audit-ci --config ./audit-ci.jsonc
 
   docker:
     name: Docker Compose build

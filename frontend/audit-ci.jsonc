@@ -1,0 +1,29 @@
+// CI dependency-vulnerability gate. Replaces the bare `npm audit --audit-level=high`
+// so we can fail on high/critical advisories *and* carry a reviewed, time-boxed
+// exception for advisories that do not apply to this app.
+//
+// Semantics: `high: true` fails the build on HIGH and CRITICAL advisories
+// (matches the previous `--audit-level=high`). Anything in `allowlist` is
+// exempt — every entry MUST have a justification and a review-by date below.
+{
+  "high": true,
+
+  "allowlist": [
+    // GHSA-qwww-vcr4-c8h2 — "React Router: RSC Mode CSRF Bypass Allows Action
+    // Execution Before 400 Response" (react-router 7.12.0–8.2.0).
+    //
+    // WHY EXEMPT: the advisory is exploitable only in React Router's RSC /
+    // server framework mode. This frontend is a pure client-side SPA — mounted
+    // via `createRoot` + `<BrowserRouter>` in src/main.tsx, no SSR, no RSC, no
+    // renderToString/static handler anywhere in src/. The vulnerable code path
+    // is never reached.
+    //
+    // NO FORWARD FIX: 7.18.1 is the latest react-router release and still sits
+    // inside the affected range; `npm audit fix --force` only *downgrades* to
+    // 7.11.0, which reintroduces the CVEs fixed in 7.18.1. Downgrading is worse.
+    //
+    // REVIEW BY: 2026-10-26 — drop this entry once react-router ships a patched
+    // release above 8.2.0, then bump and remove.
+    "GHSA-qwww-vcr4-c8h2"
+  ]
+}
