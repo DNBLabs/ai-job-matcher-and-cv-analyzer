@@ -176,6 +176,7 @@ Repo scaffold + Docker Compose
 - [x] Issue #84: ResultCard expand/collapse breakdown toggle — `useState(false)` per card; collapsed summary (title, company, source, scores, divergence badge, apply link); shadcn `Button` toggle (`Show breakdown` / `Hide breakdown`); breakdown sections conditionally rendered (not CSS-hidden); legacy `result-card*` classes replaced with Tailwind utilities; 16 `ResultCard` Vitest tests green (#90).
 - [x] Issue #93: Tailwind rewrite — Dashboard hub — `Dashboard.tsx`, `QuotaBanner.tsx`, `RunHistory.tsx` migrated from `App.css` hooks to Tailwind utilities + shadcn `Card`, `Badge`, `Alert`, `Button`; 375px light/dark AC tests green; PR #96 merged (`e76a6d9`).
 - [x] Issue #94: Tailwind rewrite — run flow (NewRun + RunDetail) — `NewRun.tsx`, `RunDetail.tsx`, `CvUploadForm.tsx`, `JobSearchForm.tsx`, `TitleSuggestions.tsx` migrated from `App.css` hooks to Tailwind utilities + shadcn `Input`, `Select`, `Alert`, `Badge`, `Button`; 375px light/dark AC tests green; PR #97 merged (`ac1981b`).
+- [x] Issue #95: Tailwind rewrite — Results, Admin, and App.css removal — `Results.tsx`, `Admin.tsx` migrated from `App.css` hooks to Tailwind utilities + shadcn `Alert` (warning variant), `Input`; `App.css` deleted and import removed from `App.tsx`; 375px light/dark AC tests green; PR #98 merged (`e899039`).
 
 ---
 
@@ -1094,6 +1095,35 @@ Repo scaffold + Docker Compose
 
 **Files likely touched:**
 - `frontend/src/pages/NewRun.tsx`, `frontend/src/pages/RunDetail.tsx`, `frontend/src/components/CvUploadForm.tsx`, `frontend/src/components/JobSearchForm.tsx`, `frontend/src/components/TitleSuggestions.tsx`, `frontend/src/pages/NewRun.test.tsx`, `frontend/src/pages/RunDetail.test.tsx`, `frontend/src/App.css`
+
+**Estimated scope:** Small
+
+---
+
+## Issue #95: Tailwind rewrite — Results, Admin, and App.css removal
+
+**Description:** Complete the Tailwind migration for the remaining authenticated pages and remove legacy CSS. Scope: `Results.tsx` (results list, filter bar, source-failure banner) and `Admin.tsx` (user search form and results table). Use shadcn `Alert` for the partial-success warning banner, `Input` for search fields, and appropriate layout utilities for tables and filters. Once no file references `App.css` classes, remove the `import './App.css'` from `App.tsx` and delete `frontend/src/App.css`. No logic changes — className strings and element structure only.
+
+**Parent / Epic:** #86
+
+**Acceptance criteria:**
+- [x] Given Results at 375px in light and dark mode, when rendered, then the page is usable (no horizontal scroll, interactive elements reachable) and text/background colours are legible
+- [x] Given Admin at 375px in light and dark mode, when rendered, then the page is usable (no horizontal scroll, interactive elements reachable) and text/background colours are legible
+- [x] Given Results page with a source failure banner, when rendered, then the partial-success warning is visible and uses the `Alert` component warning variant
+- [x] Given `frontend/src`, when searched, then `App.css` does not exist and `grep -r "App.css" frontend/src` finds no matches
+- [x] Given `npm run test` and `npm run build` in `frontend/`, when run after this change, then both exit 0 with no errors
+
+**Verification:**
+- [x] `npm test -- src/pages/Results.test.tsx src/pages/Admin.test.tsx` — AC tests + existing suite green (154 tests)
+- [x] `npm run lint` green
+- [x] `npm run build` green
+- [x] `npm audit --audit-level=high` green
+- [x] PR CI green; post-merge CI + Deploy on `main` green (`e899039`)
+
+**Dependencies:** Issue #82 (Tailwind + shadcn/ui tooling); Issue #83 (AppLayout); Issue #93 (Dashboard hub); Issue #94 (run flow)
+
+**Files likely touched:**
+- `frontend/src/pages/Results.tsx`, `frontend/src/pages/Admin.tsx`, `frontend/src/pages/Results.test.tsx`, `frontend/src/pages/Admin.test.tsx`, `frontend/src/components/ui/alert.tsx`, `frontend/src/App.tsx`
 
 **Estimated scope:** Small
 

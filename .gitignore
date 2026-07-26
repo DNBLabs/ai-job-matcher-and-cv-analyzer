@@ -7,6 +7,9 @@
 credentials.json
 secrets/
 
+# Personal study notes (plan/teach/defend) — not a project record
+.study/
+
 # Python
 __pycache__/
 *.py[cod]
