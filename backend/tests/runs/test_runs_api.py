@@ -272,6 +272,28 @@ async def test_get_run_results_only_when_complete(
 
 
 @pytest.mark.asyncio
+async def test_get_foreign_run_results_returns_404_never_403(
+    runs_client: AsyncClient,
+    db_session: Session,
+) -> None:
+    """AC7/AC8: GET /runs/{id}/results returns 404 (not 403) for another user's run.
+
+    Uses 404 rather than 403 so ownership is not disclosed to the caller.
+    """
+    owner = create_test_user(db_session, email="owner@example.com")
+    other = create_test_user(db_session, email="other@example.com")
+    cv = _create_cv(db_session, owner)
+    run = _seed_run(db_session, user=owner, cv=cv, status=AnalysisRunStatus.COMPLETE)
+    _seed_result(db_session, run)
+    _authenticate_client(runs_client, db_session, other)
+
+    response = await runs_client.get(f"/runs/{run.id}/results")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Not found"
+
+
+@pytest.mark.asyncio
 async def test_get_run_results_returns_pipeline_scored_count(
     runs_client: AsyncClient,
     db_session: Session,
