@@ -15,6 +15,8 @@ import { Login } from "./pages/Login";
 import { NewRun } from "./pages/NewRun";
 import { Results } from "./pages/Results";
 import { RunDetail } from "./pages/RunDetail";
+// PROTOTYPE (wayfinder #105) — remove with `src/prototypes/` once decided.
+import { BestFitPrototype } from "./prototypes/BestFitPrototype";
 
 function App() {
   return (
@@ -72,6 +74,8 @@ function App() {
             </AdminRoute>
           }
         />
+        {/* PROTOTYPE (wayfinder #105) — unauthenticated on purpose: fixtures only. */}
+        <Route path="/prototype/best-fit" element={<BestFitPrototype />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </AuthProvider>
